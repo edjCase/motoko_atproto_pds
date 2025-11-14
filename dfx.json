@@ -1,7 +1,7 @@
 {
   "canisters": {
     "pds": {
-      "main": "src/Main.mo",
+      "main": "src/main.mo",
       "type": "motoko",
       "args": "--enhanced-orthogonal-persistence"
     }

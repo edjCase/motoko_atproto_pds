@@ -3,6 +3,7 @@ import Result "mo:core@1/Result";
 module {
   public type Actor = actor {
     initialize(request : InitializeRequest) : async Result.Result<(), Text>;
+    post(message : Text) : async Result.Result<Text, Text>;
   };
 
   public type InitializeRequest = {
