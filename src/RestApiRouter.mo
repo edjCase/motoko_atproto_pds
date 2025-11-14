@@ -1,7 +1,7 @@
 import RouteContext "mo:liminal@3/RouteContext";
 import Route "mo:liminal@3/Route";
 import Text "mo:core@1/Text";
-import SubscribeRepos "../atproto/Lexicons/Com/Atproto/Sync/SubscribeRepos";
+import SubscribeRepos "mo:atproto@0/Lexicons/Com/Atproto/Sync/SubscribeRepos";
 import RepositoryMessageHandler "./Handlers/RepositoryMessageHandler";
 import Nat "mo:core@1/Nat";
 import Iter "mo:core@1/Iter";

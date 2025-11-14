@@ -5,17 +5,22 @@ import DID "mo:did@3";
 import TID "mo:tid@1";
 import Blob "mo:core@1/Blob";
 import { test = testAsync } "mo:test/async";
-import RepositoryHandler "../src/pds/Handlers/RepositoryHandler";
-import ServerInfoHandler "../src/pds/Handlers/ServerInfoHandler";
-import KeyHandler "../src/pds/Handlers/KeyHandler";
-import Repository "../src/atproto/Repository";
+import RepositoryHandler "../src/Handlers/RepositoryHandler";
+import ServerInfoHandler "../src/Handlers/ServerInfoHandler";
+import KeyHandler "../src/Handlers/KeyHandler";
+import Repository "mo:atproto@0/Repository";
 import Sha256 "mo:sha2@0/Sha256";
 import DateTime "mo:datetime@1/DateTime";
 import Array "mo:core@1/Array";
+import RepositoryMessageHandler "../src/Handlers/RepositoryMessageHandler";
 
 // Helper to create test DID
 func createTestDID() : DID.Plc.DID {
   { identifier = "test123456789abcdefghijk" };
+};
+
+func dummyOnCommitFunc(_ : RepositoryMessageHandler.Commit) : () {
+
 };
 
 // Create mock handlers for testing
@@ -60,6 +65,7 @@ await testAsync(
       keyHandler,
       serverInfoHandler,
       tidGenerator,
+      dummyOnCommitFunc,
     );
 
     switch (await* repositoryHandler.initialize(null)) {
@@ -85,6 +91,7 @@ await testAsync(
       keyHandler,
       serverInfoHandler,
       tidGenerator,
+      dummyOnCommitFunc,
     );
 
     // Initialize repository first
@@ -145,6 +152,7 @@ await testAsync(
       keyHandler,
       serverInfoHandler,
       tidGenerator,
+      dummyOnCommitFunc,
     );
 
     // Initialize repository
@@ -225,6 +233,7 @@ await testAsync(
       keyHandler,
       serverInfoHandler,
       tidGenerator,
+      dummyOnCommitFunc,
     );
 
     // Initialize repository
@@ -283,6 +292,7 @@ await testAsync(
       keyHandler,
       serverInfoHandler,
       tidGenerator,
+      dummyOnCommitFunc,
     );
 
     // Initialize repository
@@ -338,6 +348,7 @@ await testAsync(
       keyHandler,
       serverInfoHandler,
       tidGenerator,
+      dummyOnCommitFunc,
     );
 
     // Initialize repository
@@ -387,6 +398,7 @@ await testAsync(
       keyHandler,
       serverInfoHandler,
       tidGenerator,
+      dummyOnCommitFunc,
     );
 
     // Initialize
@@ -423,6 +435,7 @@ await testAsync(
       keyHandler,
       serverInfoHandler,
       tidGenerator,
+      dummyOnCommitFunc,
     );
 
     // Verify the record still exists in the new handler

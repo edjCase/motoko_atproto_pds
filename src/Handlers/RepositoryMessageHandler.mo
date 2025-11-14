@@ -4,12 +4,12 @@ import DID "mo:did@3";
 import Result "mo:core@1/Result";
 import Queue "mo:core@1/Queue";
 import PureQueue "mo:core@1/pure/Queue";
-import SubscribeRepos "../../atproto/Lexicons/Com/Atproto/Sync/SubscribeRepos";
+import SubscribeRepos "mo:atproto@0/Lexicons/Com/Atproto/Sync/SubscribeRepos";
 import DateTime "mo:datetime@1/DateTime";
 import Array "mo:core@1/Array";
 import List "mo:core@1/List";
 import Runtime "mo:core@1/Runtime";
-import Repository "../../atproto/Repository";
+import Repository "mo:atproto@0/Repository";
 
 module {
 

@@ -3,7 +3,7 @@ import Text "mo:core@1/Text";
 import { test } "mo:test";
 import Sha256 "mo:sha2@0/Sha256";
 import Nat "mo:core@1/Nat";
-import RepositoryMessageHandler "../src/pds/Handlers/RepositoryMessageHandler";
+import RepositoryMessageHandler "../src/Handlers/RepositoryMessageHandler";
 import PureQueue "mo:core@1/pure/Queue";
 import Option "mo:core@1/Option";
 import DID "mo:did@3";

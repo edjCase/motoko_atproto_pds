@@ -5,9 +5,9 @@ import TID "mo:tid@1";
 import Blob "mo:core@1/Blob";
 import DagCbor "mo:dag-cbor@2";
 import { test = testAsync } "mo:test/async";
-import Repository "../src/atproto/Repository";
+import Repository "mo:atproto@0/Repository";
 import Sha256 "mo:sha2@0/Sha256";
-import CarUtil "../src/pds/CarUtil";
+import CarUtil "../src/CarUtil";
 
 // Helper to create test TID
 func createTestTID(timestamp : Nat) : TID.TID {

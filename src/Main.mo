@@ -20,7 +20,7 @@ import CAR "mo:car@1";
 import CarUtil "CarUtil";
 import PdsInterface "./PdsInterface";
 import DateTime "mo:datetime@1/DateTime";
-import Repository "../atproto/Repository";
+import Repository "mo:atproto@0/Repository";
 import Option "mo:core@1/Option";
 import CertifiedAssets "mo:certified-assets@0";
 import StableCertifiedAssets "mo:certified-assets@0/Stable";

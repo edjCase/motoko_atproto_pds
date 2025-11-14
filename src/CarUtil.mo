@@ -5,17 +5,17 @@ import TID "mo:tid@1";
 import CID "mo:cid@1";
 import PureMap "mo:core@1/pure/Map";
 import CAR "mo:car@1";
-import MerkleSearchTree "../atproto/MerkleSearchTree";
+import MerkleSearchTree "mo:atproto@0/MerkleSearchTree";
 import DagCbor "mo:dag-cbor@2";
-import Commit "../atproto/Commit";
-import BlobRef "../atproto/BlobRef";
-import CIDBuilder "../atproto/CIDBuilder";
+import Commit "mo:atproto@0/Commit";
+import BlobRef "mo:atproto@0/Lexicons/BlobRef";
+import CIDBuilder "mo:atproto@0/CIDBuilder";
 import Blob "mo:core@1/Blob";
 import Int "mo:core@1/Int";
-import Repository "../atproto/Repository";
+import Repository "mo:atproto@0/Repository";
 import List "mo:core@1/List";
 import Debug "mo:core@1/Debug";
-import DagCborBuilder "../atproto/DagCborBuilder";
+import DagCborBuilder "mo:atproto@0/DagCborBuilder";
 
 module {
   public func toRepository(request : CAR.File) : Result.Result<(DID.Plc.DID, Repository.Repository), Text> {
