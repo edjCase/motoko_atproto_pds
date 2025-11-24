@@ -30,49 +30,43 @@ module {
         case (null) 0; // Default to 0 if not provided
       };
 
+      func dagCborToBase64(dagCborMessage : SubscribeRepos.DagCborMessage) : Text {
+        let bytes = List.empty<Nat8>();
+        let buffer = Buffer.fromList(bytes);
+        switch (DagCbor.toBytesBuffer(buffer, dagCborMessage.header)) {
+          case (#ok(_)) ();
+          case (#err(e)) Runtime.trap("Failed to encode DAG-CBOR header: " # debug_show (e));
+        };
+        switch (DagCbor.toBytesBuffer(buffer, dagCborMessage.payload)) {
+          case (#ok(_)) ();
+          case (#err(e)) Runtime.trap("Failed to encode DAG-CBOR payload: " # debug_show (e));
+        };
+        BaseX.toBase64(List.values(bytes), #standard({ includePadding = true }));
+      };
+
       let messagesResult = repositoryMessageHandler.getMessages(sinceSeqParam);
-      switch (messagesResult) {
+      let messageBytesArray : [Json.Json] = switch (messagesResult) {
         case (#ok(messages)) {
-          let messagesJson : [Json.Json] = messages.vals()
+          messages.vals()
           |> Iter.map(
             _,
             func(msg : RepositoryMessageHandler.Message) : Json.Json {
-              let dagCborMessage = SubscribeRepos.toDagCbor(msg);
-              let bytes = List.empty<Nat8>();
-              let buffer = Buffer.fromList(bytes);
-              switch (DagCbor.toBytesBuffer(buffer, dagCborMessage.header)) {
-                case (#ok(_)) ();
-                case (#err(e)) Runtime.trap("Failed to encode DAG-CBOR header: " # debug_show (e));
-              };
-              switch (DagCbor.toBytesBuffer(buffer, dagCborMessage.payload)) {
-                case (#ok(_)) ();
-                case (#err(e)) Runtime.trap("Failed to encode DAG-CBOR payload: " # debug_show (e));
-              };
-              #string(BaseX.toBase64(List.values(bytes), #standard({ includePadding = true })));
+              let dagCborMessage = SubscribeRepos.messageToDagCbor(msg);
+              #string(dagCborToBase64(dagCborMessage));
             },
           )
           |> Iter.toArray(_);
-          let responseBody = #object_([
-            ("messages", #array(messagesJson)),
-          ]);
-          routeContext.buildResponse(#ok, #json(responseBody));
         };
-        case (#err(e)) {
-          let (error, message) : (Text, Text) = switch (e) {
-            case (#futureCursor) {
-              ("FutureCursor", "The provided cursor is in the future.");
-            };
-            case (#consumerTooSlow({ message })) {
-              ("ConsumerTooSlow", Option.get(message, ""));
-            };
-          };
-          let errorJson = #object_([
-            ("error", #string(error)),
-            ("message", #string(message)),
-          ]);
-          routeContext.buildResponse(#badRequest, #json(errorJson));
-        };
+        case (#err(e)) [#string(dagCborToBase64(SubscribeRepos.errorToDagCbor(e)))];
       };
+      routeContext.buildResponse(
+        #ok,
+        #json(
+          #object_([
+            ("messages", #array(messageBytesArray)),
+          ])
+        ),
+      );
     };
   };
 };
