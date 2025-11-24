@@ -7,5 +7,5 @@ _acme-challenge.pds.edjcase.com.    _acme-challenge.pds.edjcase.com.icp2.io.
 pds.edjcase.com.    pds.edjcase.com.icp1.io.
 
 TXT Records
-_atproto.pds.edjcase.com.   "did=did:plc:sdpv6troz7ozrjf2titdtcd2"
+_atproto.pds.edjcase.com.   "did=did:plc:X"
 _canister-id.pds.edjcase.com.   "sctyd-5qaaa-aaaag-aa5lq-cai"

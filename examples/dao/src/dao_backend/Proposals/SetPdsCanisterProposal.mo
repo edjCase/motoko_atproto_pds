@@ -116,7 +116,7 @@ module {
     var errors = List.empty<Text>();
 
     // Validate the canister ID (basic check that it's not null)
-    if (Principal.toText(proposal.id) == "2vxsx-fae") {
+    if (proposal.id == Principal.anonymous()) {
       List.add(errors, "Invalid canister ID - cannot be anonymous principal");
     };
 
