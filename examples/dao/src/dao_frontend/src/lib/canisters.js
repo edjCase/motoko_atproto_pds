@@ -1,12 +1,22 @@
-import { createActor, canisterId } from 'declarations/dao_backend';
-import { building } from '$app/environment';
+import { createActor } from '../bindings/dao_backend';
+import { HttpAgent } from "@icp-sdk/core/agent";
+import { Principal } from "@icp-sdk/core/principal";
+import { createActor } from "./api/hello-world";
 
-function dummyActor() {
-    return new Proxy({}, { get() { throw new Error("Canister invoked while building"); } });
-}
 
-const buildingOrTesting = building || process.env.NODE_ENV === "test";
+export const canisterId =
+    process.env.CANISTER_ID_DAO_BACKEND;
 
-export const backend = buildingOrTesting
-    ? dummyActor()
-    : createActor(canisterId);
+const url = process.env.DFX_NETWORK === "ic" ? "https://icp-api.io" : "http://localhost:4943";
+
+const agent = await HttpAgent.create({
+    host: url
+});
+
+const actor = createActor(canisterId, {
+    agent,
+});
+
+const response = await actor.greet('world');
+
+console.log(response);

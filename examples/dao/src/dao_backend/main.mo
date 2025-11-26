@@ -5,7 +5,7 @@ import Result "mo:core@1/Result";
 import Text "mo:core@1/Text";
 import Array "mo:core@1/Array";
 import DaoInterface "./DaoInterface";
-import PostProposal "./Proposals/PostProposal";
+import PostToBlueskyProposal "./Proposals/PostToBlueskyProposal";
 import SetPdsCanisterProposal "./Proposals/SetPdsCanisterProposal";
 import BTree "mo:stableheapbtreemap@1/BTree";
 
@@ -40,10 +40,10 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
     proposal : ProposalEngine.Proposal<DaoInterface.ProposalKind>
   ) : async* Result.Result<(), Text> {
     switch (proposal.content) {
-      case (#post(postProposal)) {
+      case (#postToBluesky(postProposal)) {
         switch (pdsCanisterId) {
           case (null) return #err("PDS canister ID is not set. Cannot post to AT Protocol.");
-          case (?canisterId) await* PostProposal.onAdopt(canisterId, postProposal.message);
+          case (?canisterId) await* PostToBlueskyProposal.onAdopt(canisterId, postProposal.message);
         };
       };
       case (#setPdsCanister(setPdsProposal)) {
@@ -58,8 +58,8 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
 
   func onProposalValidate(content : DaoInterface.ProposalKind) : async* Result.Result<(), [Text]> {
     switch (content) {
-      case (#post(postProposal)) {
-        PostProposal.validate(postProposal);
+      case (#postToBluesky(postProposal)) {
+        PostToBlueskyProposal.validate(postProposal);
       };
       case (#setPdsCanister(setPdsProposal)) {
         SetPdsCanisterProposal.validate(setPdsProposal);
@@ -135,8 +135,8 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
 
     // Extract title and description based on proposal type
     let (title, description) = switch (proposal.content) {
-      case (#post(postProposal)) {
-        ("Post", "Post content to Personal Data Server for Bluesky. Content: \n" # postProposal.message);
+      case (#postToBluesky(postProposal)) {
+        ("Post To Bluesky", "Post content to Personal Data Server for Bluesky. Content: \n" # postProposal.message);
       };
       case (#setPdsCanister(setPdsProposal)) {
         let kindText = switch (setPdsProposal.kind) {

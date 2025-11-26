@@ -3,6 +3,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import environment from 'vite-plugin-environment';
 import dotenv from 'dotenv';
+import { icpBindgen } from '@icp-sdk/bindgen/plugins/vite';
 
 dotenv.config({ path: '../../.env' });
 
@@ -29,6 +30,10 @@ export default defineConfig({
     sveltekit(),
     environment("all", { prefix: "CANISTER_" }),
     environment("all", { prefix: "DFX_" }),
+    icpBindgen({
+      didFile: '../declarations/dao_backend/dao_backend.did',
+      outDir: './src/bindings',
+    }),
   ],
   resolve: {
     alias: [

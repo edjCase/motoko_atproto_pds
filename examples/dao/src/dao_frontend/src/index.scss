@@ -1,41 +1,362 @@
+/* Terminal-style DAO Governance UI */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 body {
-  font-family: sans-serif;
+  font-family: 'Courier New', monospace;
+  background: #0a0a0a;
+  color: #00ff00;
+  min-height: 100vh;
+  padding: 20px;
+  line-height: 1.6;
+}
+
+.terminal-container {
+  background: #000;
+  border: 2px solid #00ff00;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3), inset 0 0 50px rgba(0, 255, 0, 0.05);
+  padding: 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+h1, h2, h3 {
+  color: #00ff00;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+  margin-bottom: 20px;
+}
+
+h1 {
+  font-size: 2rem;
+  border-bottom: 2px solid #00ff00;
+  padding-bottom: 10px;
+  margin-bottom: 30px;
+}
+
+h2 {
   font-size: 1.5rem;
+  margin-top: 30px;
 }
 
-img {
-  max-width: 50vw;
-  max-height: 25vw;
+h3 {
+  font-size: 1.2rem;
+  margin-top: 20px;
+}
+
+.prompt {
+  color: #00ff00;
+  margin-bottom: 5px;
+}
+
+.prompt:before {
+  content: "$ ";
+  color: #00ff00;
+}
+
+.section {
+  margin-bottom: 30px;
+  padding: 20px;
+  border: 1px solid #00ff00;
+  border-radius: 4px;
+  background: rgba(0, 255, 0, 0.02);
+}
+
+button {
+  background: #000;
+  border: 2px solid #00ff00;
+  color: #00ff00;
+  padding: 10px 20px;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  border-radius: 4px;
+  margin-right: 10px;
+  margin-bottom: 10px;
+}
+
+button:hover:not(:disabled) {
+  background: #00ff00;
+  color: #000;
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: #00ff00;
+  color: #000;
+}
+
+button.primary:hover:not(:disabled) {
+  background: #000;
+  color: #00ff00;
+}
+
+button.danger {
+  border-color: #ff0000;
+  color: #ff0000;
+}
+
+button.danger:hover:not(:disabled) {
+  background: #ff0000;
+  color: #000;
+  box-shadow: 0 0 15px rgba(255, 0, 0, 0.5);
+}
+
+input, textarea, select {
+  background: #000;
+  border: 2px solid #00ff00;
+  color: #00ff00;
+  padding: 10px;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  border-radius: 4px;
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+label {
   display: block;
-  margin: auto;
+  color: #00ff00;
+  margin-bottom: 5px;
+  font-weight: bold;
 }
 
-form {
+.form-group {
+  margin-bottom: 20px;
+}
+
+.proposal-card {
+  border: 2px solid #00ff00;
+  padding: 20px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  background: rgba(0, 255, 0, 0.02);
+}
+
+.proposal-header {
   display: flex;
-  justify-content: center;
-  gap: 0.5em;
-  flex-flow: row wrap;
-  max-width: 40vw;
-  margin: auto;
-  align-items: baseline;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
 }
 
-button[type="submit"] {
-  padding: 5px 20px;
-  margin: 10px auto;
-  float: right;
+.proposal-title {
+  font-size: 1.3rem;
+  color: #00ff00;
+  margin-bottom: 5px;
 }
 
-#greeting {
-  margin: 10px auto;
-  padding: 10px 60px;
-  border: 1px solid #222;
+.proposal-id {
+  color: #00aa00;
+  font-size: 0.9rem;
 }
 
-#greeting:empty {
-  display: none;
+.proposal-status {
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.status-open {
+  background: rgba(0, 255, 0, 0.2);
+  color: #00ff00;
+  border: 1px solid #00ff00;
+}
+
+.status-adopted {
+  background: rgba(0, 255, 0, 0.3);
+  color: #00ff00;
+  border: 1px solid #00ff00;
+}
+
+.status-rejected {
+  background: rgba(255, 0, 0, 0.2);
+  color: #ff0000;
+  border: 1px solid #ff0000;
+}
+
+.status-executing {
+  background: rgba(255, 255, 0, 0.2);
+  color: #ffff00;
+  border: 1px solid #ffff00;
+}
+
+.proposal-description {
+  color: #00dd00;
+  margin-bottom: 15px;
+  white-space: pre-wrap;
+}
+
+.vote-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 15px;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+}
+
+.vote-stat {
+  display: flex;
+  flex-direction: column;
+}
+
+.vote-label {
+  color: #00aa00;
+  font-size: 0.9rem;
+}
+
+.vote-value {
+  color: #00ff00;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+.vote-bar {
+  width: 100%;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #00ff00;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 15px;
+}
+
+.vote-bar-fill {
+  height: 100%;
+  background: #00ff00;
+  transition: width 0.3s;
+}
+
+.vote-bar-fill.against {
+  background: #ff0000;
+}
+
+.vote-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.timestamp {
+  color: #00aa00;
+  font-size: 0.9rem;
+  margin-top: 10px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #00ff00;
+  font-size: 1.2rem;
+}
+
+.error {
+  background: rgba(255, 0, 0, 0.1);
+  border: 2px solid #ff0000;
+  color: #ff0000;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.success {
+  background: rgba(0, 255, 0, 0.1);
+  border: 2px solid #00ff00;
+  color: #00ff00;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.blink {
+  animation: blink 1s infinite;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.auth-placeholder {
+  background: rgba(255, 255, 0, 0.1);
+  border: 2px dashed #ffff00;
+  color: #ffff00;
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #00ff00;
+}
+
+.tab {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #00aa00;
+  padding: 10px 20px;
+  margin-bottom: -2px;
+}
+
+.tab.active {
+  color: #00ff00;
+  border-bottom-color: #00ff00;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #00aa00;
+  font-style: italic;
 }
 
 .browser-warning {
   display: none;
+}
+
+@media (max-width: 768px) {
+  .terminal-container {
+    padding: 20px;
+  }
+  
+  h1 {
+    font-size: 1.5rem;
+  }
+  
+  .proposal-header {
+    flex-direction: column;
+  }
+  
+  .vote-info {
+    grid-template-columns: 1fr;
+  }
 }

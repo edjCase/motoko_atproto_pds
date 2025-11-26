@@ -8,7 +8,7 @@ module {
   // Types for our DAO
 
   public type ProposalKind = {
-    #post : PostProposal.ProposalData;
+    #postToBluesky : PostProposal.ProposalData;
     #setPdsCanister : SetPdsCanisterProposal.ProposalData;
   };
 
