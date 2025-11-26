@@ -1,0 +1,335 @@
+type Value__1 = 
+ variant {
+   array: vec Value__1;
+   "bool": bool;
+   bytes: vec nat8;
+   cid: CID;
+   float: float64;
+   "int": int;
+   map: vec record {
+              text;
+              Value__1;
+            };
+   "null";
+   "text": text;
+ };
+type ValidationStatus = 
+ variant {
+   unknown;
+   valid;
+ };
+type UpdatePlcRequest = 
+ record {
+   alsoKnownAs: vec text;
+   did: text;
+   services: vec PlcService;
+ };
+type TreeEntry = 
+ record {
+   keySuffix: vec nat8;
+   prefixLength: nat;
+   subtreeCID: opt CID;
+   valueCID: CID;
+ };
+type TIDText = text;
+type StreamingToken = blob;
+type StreamingStrategy = variant {Callback: CallbackStreamingStrategy;};
+type StreamingCallbackResponse = 
+ record {
+   body: blob;
+   token: opt StreamingToken;
+ };
+type StreamingCallback = func (StreamingToken) ->
+                          (StreamingCallbackResponse) query;
+type Result_7 = 
+ variant {
+   err: text;
+   ok: CreateRecordResponse;
+ };
+type Result_6 = 
+ variant {
+   err: text;
+   ok: DeleteRecordResponse;
+ };
+type Result_5 = 
+ variant {
+   err: text;
+   ok: ExportData;
+ };
+type Result_4 = 
+ variant {
+   err: text;
+   ok: GetRecordResponse;
+ };
+type Result_3 = 
+ variant {
+   err: text;
+   ok: ListRecordsResponse;
+ };
+type Result_2 = 
+ variant {
+   err: text;
+   ok: text;
+ };
+type Result_1 = 
+ variant {
+   err: text;
+   ok: PutRecordResponse;
+ };
+type Result = 
+ variant {
+   err: text;
+   ok;
+ };
+type RawUpdateHttpResponse = 
+ record {
+   body: blob;
+   headers: vec Header;
+   status_code: nat16;
+   streaming_strategy: opt StreamingStrategy;
+ };
+type RawUpdateHttpRequest = 
+ record {
+   body: blob;
+   headers: vec Header;
+   method: text;
+   url: text;
+ };
+type RawQueryHttpResponse = 
+ record {
+   body: blob;
+   headers: vec Header;
+   status_code: nat16;
+   streaming_strategy: opt StreamingStrategy;
+   upgrade: opt bool;
+ };
+type RawQueryHttpRequest = 
+ record {
+   body: blob;
+   certificate_version: opt nat16;
+   headers: vec Header;
+   method: text;
+   url: text;
+ };
+type PutRecordResponse = 
+ record {
+   cid: CIDText;
+   commit: opt CommitMeta;
+   validationStatus: opt ValidationStatus;
+ };
+type PutRecordRequest = 
+ record {
+   collection: text;
+   "record": Value__1;
+   rkey: text;
+   swapCommit: opt CIDText;
+   swapRecord: opt CIDText;
+   validate: opt bool;
+ };
+type PlcService = 
+ record {
+   endpoint: text;
+   id: text;
+   "type": text;
+ };
+type PlcKind = 
+ variant {
+   car: blob;
+   id: text;
+   new: CreatePlcRequest;
+ };
+type Pds = 
+ service {
+   clearLogs: () -> (Result);
+   createPlcDid: (request: CreatePlcRequest) -> (Result_2);
+   createRecord: (request: CreateRecordRequest) -> (Result_7);
+   deleteRecord: (request: DeleteRecordRequest) -> (Result_6);
+   exportRepoData: () -> (Result_5) query;
+   getDeployer: () -> (principal) query;
+   getLogs: (limit: nat, offset: nat) -> (vec LogEntry) query;
+   getOwner: () -> (principal) query;
+   getRecord: (request: GetRecordRequest) -> (Result_4) query;
+   http_request: (request: RawQueryHttpRequest) ->
+    (RawQueryHttpResponse) query;
+   http_request_update: (request: RawUpdateHttpRequest) ->
+    (RawUpdateHttpResponse);
+   initialize: (request: InitializeRequest) -> (Result);
+   listRecords: (request: ListRecordsRequest) -> (Result_3) query;
+   postToBluesky: (message: text) -> (Result_2);
+   putRecord: (request: PutRecordRequest) -> (Result_1);
+   setOwner: (newOwner: principal) -> (Result);
+   updatePlcDid: (request: UpdatePlcRequest) -> (Result);
+ };
+type Node = 
+ record {
+   entries: vec TreeEntry;
+   leftSubtreeCID: opt CID;
+ };
+type LogLevel = 
+ variant {
+   debug;
+   error;
+   fatal;
+   info;
+   verbose;
+   warning;
+ };
+type LogEntry = 
+ record {
+   level: LogLevel;
+   message: text;
+   time: int;
+ };
+type ListRecordsResponse = 
+ record {
+   cursor: opt text;
+   records: vec ListRecord;
+ };
+type ListRecordsRequest = 
+ record {
+   collection: text;
+   cursor: opt text;
+   limit: opt nat;
+   reverse: opt bool;
+   rkeyEnd: opt text;
+   rkeyStart: opt text;
+ };
+type ListRecord = 
+ record {
+   cid: CIDText;
+   collection: text;
+   rkey: text;
+   value: Value__1;
+ };
+type InitializeRequest = 
+ record {
+   hostname: text;
+   plc: PlcKind;
+   serviceSubdomain: opt text;
+ };
+type Header = 
+ record {
+   text;
+   text;
+ };
+type HashAlgorithm = 
+ variant {
+   blake2b256;
+   blake2s256;
+   none;
+   sha2256;
+   sha2512;
+   sha3256;
+   sha3512;
+ };
+type GetRecordResponse = 
+ record {
+   cid: CIDText;
+   value: Value__1;
+ };
+type GetRecordRequest = 
+ record {
+   cid: opt CIDText;
+   collection: text;
+   rkey: text;
+ };
+type ExportData = 
+ record {
+   commits: vec record {
+                  CIDText;
+                  Commit;
+                };
+   nodes: vec record {
+                CIDText;
+                Node;
+              };
+   records: vec record {
+                  CIDText;
+                  Value__1;
+                };
+ };
+type DeleteRecordResponse = record {commit: opt CommitMeta;};
+type DeleteRecordRequest = 
+ record {
+   collection: text;
+   rkey: text;
+   swapCommit: opt CIDText;
+   swapRecord: opt CIDText;
+ };
+type CreateRecordResponse = 
+ record {
+   cid: CIDText;
+   commit: opt CommitMeta;
+   rkey: text;
+   validationStatus: ValidationStatus;
+ };
+type CreateRecordRequest = 
+ record {
+   collection: text;
+   "record": Value__1;
+   rkey: opt text;
+   swapCommit: opt CIDText;
+   validate: opt bool;
+ };
+type CreatePlcRequest = 
+ record {
+   alsoKnownAs: vec text;
+   services: vec PlcService;
+ };
+type CommitMeta = 
+ record {
+   cid: CIDText;
+   rev: TIDText;
+ };
+type Commit = 
+ record {
+   data: CIDText;
+   did: CIDText;
+   prev: opt CIDText;
+   rev: TIDText;
+   sig: blob;
+   version: nat;
+ };
+type Codec = 
+ variant {
+   blake2b256;
+   blake2s256;
+   bls12381G1Pub;
+   bls12381G2Pub;
+   dagCbor;
+   dagJson;
+   dagPb;
+   ed25519Pub;
+   ed448Pub;
+   p256Pub;
+   p384Pub;
+   p521Pub;
+   raw;
+   rsaPub;
+   secp256k1Pub;
+   sha2256;
+   sha2512;
+   sha3256;
+   sha3512;
+   x25519Pub;
+   x448Pub;
+ };
+type CallbackStreamingStrategy = 
+ record {
+   callback: StreamingCallback;
+   token: StreamingToken;
+ };
+type CID__2 = 
+ record {
+   codec: Codec;
+   hash: blob;
+   hashAlgorithm: HashAlgorithm;
+ };
+type CID__1 = record {hash: blob;};
+type CIDText = text;
+type CID = 
+ variant {
+   v0: CID__1;
+   v1: CID__2;
+ };
+service : (initData: record {owner: opt principal;}) -> Pds

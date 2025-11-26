@@ -59,11 +59,11 @@ export interface PagedResult {
 }
 export type Time = bigint;
 export type ProposalKind = {
-    __kind__: "post";
-    post: ProposalData;
-} | {
     __kind__: "setPdsCanister";
     setPdsCanister: ProposalData__1;
+} | {
+    __kind__: "postToBluesky";
+    postToBluesky: ProposalData;
 };
 export interface ProposalData {
     message: string;
@@ -503,20 +503,20 @@ function to_candid_record_n9(value: {
     };
 }
 function to_candid_variant_n2(value: {
-    __kind__: "post";
-    post: ProposalData;
-} | {
     __kind__: "setPdsCanister";
     setPdsCanister: ProposalData__1;
-}): {
-    post: _ProposalData;
 } | {
+    __kind__: "postToBluesky";
+    postToBluesky: ProposalData;
+}): {
     setPdsCanister: _ProposalData__1;
+} | {
+    postToBluesky: _ProposalData;
 } {
-    return value.__kind__ === "post" ? {
-        post: value.post
-    } : value.__kind__ === "setPdsCanister" ? {
+    return value.__kind__ === "setPdsCanister" ? {
         setPdsCanister: to_candid_ProposalData__1_n3(value.setPdsCanister)
+    } : value.__kind__ === "postToBluesky" ? {
+        postToBluesky: value.postToBluesky
     } : value;
 }
 function to_candid_variant_n5(value: {

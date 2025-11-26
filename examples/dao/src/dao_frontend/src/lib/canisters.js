@@ -1,22 +1,21 @@
 import { createActor } from '../bindings/dao_backend';
 import { HttpAgent } from "@icp-sdk/core/agent";
-import { Principal } from "@icp-sdk/core/principal";
-import { createActor } from "./api/hello-world";
 
+export const canisterId = process.env.CANISTER_ID_DAO_BACKEND;
 
-export const canisterId =
-    process.env.CANISTER_ID_DAO_BACKEND;
+let isProd = process.env.DFX_NETWORK === "ic";
 
-const url = process.env.DFX_NETWORK === "ic" ? "https://icp-api.io" : "http://localhost:4943";
-
+const url = isProd ? "https://icp-api.io" : "http://localhost:4943";
+// Created once globally at app initialization
 const agent = await HttpAgent.create({
     host: url
 });
+if (!isProd) {
+    await agent.fetchRootKey();
+}
 
-const actor = createActor(canisterId, {
+
+// Created once globally and exported for use throughout the app
+export const backend = createActor(canisterId, {
     agent,
 });
-
-const response = await actor.greet('world');
-
-console.log(response);
