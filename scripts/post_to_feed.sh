@@ -20,4 +20,4 @@ message=$2
 
 echo "Posting '${message}' to the feed of canister ${canister_id}..."
 
-dfx canister call ${canister_id} post "(\"${message}\")" --network "${network}"
+dfx canister call ${canister_id} postToBluesky "(\"${message}\")" --network "${network}"

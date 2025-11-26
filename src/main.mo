@@ -34,6 +34,8 @@ import Runtime "mo:core@1/Runtime";
 import Debug "mo:core@1/Debug";
 import Nat "mo:core@1/Nat";
 import Time "mo:core@1/Time";
+import Array "mo:core@1/Array";
+import Commit "mo:atproto@0/Commit";
 
 shared ({ caller = deployer }) persistent actor class Pds(
   initData : {
@@ -226,9 +228,9 @@ shared ({ caller = deployer }) persistent actor class Pds(
     await* app.http_request_update(request);
   };
 
-  public shared query ({ caller }) func getLogs(limit : Nat, offset : Nat) : async [LogEntry] {
-    if (caller != owner and caller != deployer) {
-      return Runtime.trap("Only the owner or deployer can get the logs");
+  public shared query ({ caller }) func getLogs(limit : Nat, offset : Nat) : async [PdsInterface.LogEntry] {
+    if (caller != owner) {
+      return Runtime.trap("Only the owner can get the logs");
     };
     PureQueue.values(stableLogData)
     |> Iter.drop(_, offset)
@@ -237,14 +239,210 @@ shared ({ caller = deployer }) persistent actor class Pds(
   };
 
   public shared ({ caller }) func clearLogs() : async Result.Result<(), Text> {
-    if (caller != owner and caller != deployer) {
-      return #err("Only the owner or deployer can clear the logs");
+    if (caller != owner) {
+      return #err("Only the owner can clear the logs");
     };
     stableLogData := PureQueue.empty<LogEntry>();
     #ok;
   };
 
-  public shared ({ caller }) func post(message : Text) : async Result.Result<Text, Text> {
+  public shared query func getOwner() : async Principal {
+    owner;
+  };
+
+  public shared ({ caller }) func setOwner(newOwner : Principal) : async Result.Result<(), Text> {
+    if (caller != owner) {
+      return #err("Only the owner can transfer ownership");
+    };
+    owner := newOwner;
+    #ok;
+  };
+
+  public shared query func getDeployer() : async Principal {
+    deployer;
+  };
+
+  public shared ({ caller }) func createRecord(request : PdsInterface.CreateRecordRequest) : async Result.Result<PdsInterface.CreateRecordResponse, Text> {
+    if (caller != owner) {
+      return #err("Only the owner can create records in this PDS");
+    };
+    let swapCommitCid = switch (request.swapCommit) {
+      case (null) null;
+      case (?cidText) {
+        switch (CID.fromText(cidText)) {
+          case (#ok(cid)) ?cid;
+          case (#err(e)) return #err("Invalid swapCommit CID: " # e);
+        };
+      };
+    };
+    let repoRequest : RepositoryHandler.CreateRecordRequest = {
+      collection = request.collection;
+      rkey = request.rkey;
+      record = request.record;
+      validate = request.validate;
+      swapCommit = swapCommitCid;
+    };
+    switch (await* repositoryHandler.createRecord(repoRequest)) {
+      case (#ok(response)) #ok({
+        rkey = response.rkey;
+        cid = CID.toText(response.cid);
+        commit = switch (response.commit) {
+          case (null) null;
+          case (?commit) {
+            ?{
+              cid = CID.toText(commit.cid);
+              rev = TID.toText(commit.rev);
+            };
+          };
+        };
+        validationStatus = response.validationStatus;
+      });
+      case (#err(e)) #err("Failed to create record: " # e);
+    };
+  };
+
+  public shared ({ caller }) func deleteRecord(request : PdsInterface.DeleteRecordRequest) : async Result.Result<PdsInterface.DeleteRecordResponse, Text> {
+    if (caller != owner) {
+      return #err("Only the owner can delete records in this PDS");
+    };
+    let swapCommitCid = switch (request.swapCommit) {
+      case (null) null;
+      case (?cidText) {
+        switch (CID.fromText(cidText)) {
+          case (#ok(cid)) ?cid;
+          case (#err(e)) return #err("Invalid swapCommit CID: " # e);
+        };
+      };
+    };
+    let swapRecordCid = switch (request.swapRecord) {
+      case (null) null;
+      case (?cidText) {
+        switch (CID.fromText(cidText)) {
+          case (#ok(cid)) ?cid;
+          case (#err(e)) return #err("Invalid swapRecord CID: " # e);
+        };
+      };
+    };
+    let repoRequest : RepositoryHandler.DeleteRecordRequest = {
+      collection = request.collection;
+      rkey = request.rkey;
+      swapCommit = swapCommitCid;
+      swapRecord = swapRecordCid;
+    };
+    switch (await* repositoryHandler.deleteRecord(repoRequest)) {
+      case (#ok(data)) #ok({
+        commit = switch (data.commit) {
+          case (null) null;
+          case (?commit) {
+            ?{
+              cid = CID.toText(commit.cid);
+              rev = TID.toText(commit.rev);
+            };
+          };
+        };
+      });
+      case (#err(e)) #err("Failed to delete record: " # e);
+    };
+  };
+
+  public shared ({ caller }) func putRecord(request : PdsInterface.PutRecordRequest) : async Result.Result<PdsInterface.PutRecordResponse, Text> {
+    if (caller != owner) {
+      return #err("Only the owner can put records in this PDS");
+    };
+    let swapCommitCid = switch (request.swapCommit) {
+      case (null) null;
+      case (?cidText) {
+        switch (CID.fromText(cidText)) {
+          case (#ok(cid)) ?cid;
+          case (#err(e)) return #err("Invalid swapCommit CID: " # e);
+        };
+      };
+    };
+    let swapRecordCid = switch (request.swapRecord) {
+      case (null) null;
+      case (?cidText) {
+        switch (CID.fromText(cidText)) {
+          case (#ok(cid)) ?cid;
+          case (#err(e)) return #err("Invalid swapRecord CID: " # e);
+        };
+      };
+    };
+    let repoRequest : RepositoryHandler.PutRecordRequest = {
+      collection = request.collection;
+      rkey = request.rkey;
+      record = request.record;
+      validate = request.validate;
+      swapCommit = swapCommitCid;
+      swapRecord = swapRecordCid;
+    };
+    switch (await* repositoryHandler.putRecord(repoRequest)) {
+      case (#ok(response)) #ok({
+        cid = CID.toText(response.cid);
+        commit = switch (response.commit) {
+          case (null) null;
+          case (?commit) {
+            ?{
+              cid = CID.toText(commit.cid);
+              rev = TID.toText(commit.rev);
+            };
+          };
+        };
+        validationStatus = response.validationStatus;
+      });
+      case (#err(e)) #err("Failed to put record: " # e);
+    };
+  };
+
+  public shared query func getRecord(request : PdsInterface.GetRecordRequest) : async Result.Result<PdsInterface.GetRecordResponse, Text> {
+    let cidOpt = switch (request.cid) {
+      case (null) null;
+      case (?cidText) {
+        switch (CID.fromText(cidText)) {
+          case (#ok(cid)) ?cid;
+          case (#err(e)) return #err("Invalid CID: " # e);
+        };
+      };
+    };
+    let getRequest = {
+      collection = request.collection;
+      rkey = request.rkey;
+      cid = cidOpt;
+    };
+    switch (repositoryHandler.getRecord(getRequest)) {
+      case (?response) #ok({
+        cid = CID.toText(response.cid);
+        value = response.value;
+      });
+      case (null) #err("Record not found");
+    };
+  };
+
+  public shared query func listRecords(request : PdsInterface.ListRecordsRequest) : async Result.Result<PdsInterface.ListRecordsResponse, Text> {
+    let response = repositoryHandler.listRecords({
+      collection = request.collection;
+      limit = request.limit;
+      cursor = request.cursor;
+      rkeyStart = request.rkeyStart;
+      rkeyEnd = request.rkeyEnd;
+      reverse = request.reverse;
+    });
+    #ok({
+      cursor = response.cursor;
+      records = Array.map<RepositoryHandler.ListRecord, PdsInterface.ListRecord>(
+        response.records,
+        func(r) {
+          {
+            collection = r.collection;
+            rkey = r.rkey;
+            cid = CID.toText(r.cid);
+            value = r.value;
+          };
+        },
+      );
+    });
+  };
+
+  public shared ({ caller }) func postToBluesky(message : Text) : async Result.Result<Text, Text> {
     if (caller != owner) {
       return #err("Only the owner can post to this PDS");
     };
@@ -266,15 +464,44 @@ shared ({ caller = deployer }) persistent actor class Pds(
     };
   };
 
-  public shared query func exportRepoData() : async Result.Result<Repository.ExportData, Text> {
+  public shared query func exportRepoData() : async Result.Result<PdsInterface.ExportData, Text> {
     let repository = repositoryHandler.get();
-    Repository.exportData(repository, #full({ includeHistorical = true }));
+    let data = switch (Repository.exportData(repository, #full({ includeHistorical = true }))) {
+      case (#ok(data)) data;
+      case (#err(e)) return #err(e);
+    };
+    #ok({
+      commits = Array.map<(CID.CID, Commit.Commit), (Text, PdsInterface.Commit)>(
+        data.commits,
+        func((cid, commit)) {
+          (
+            CID.toText(cid),
+            {
+              sig = commit.sig;
+              did = DID.Plc.toText(commit.did);
+              version = commit.version;
+              data = CID.toText(commit.data);
+              rev = TID.toText(commit.rev);
+              prev = Option.map(commit.prev, CID.toText);
+            },
+          );
+        },
+      );
+      records = Array.map(
+        data.records,
+        func((cid, value)) = (CID.toText(cid), value),
+      );
+      nodes = Array.map(
+        data.nodes,
+        func((cid, node)) = (CID.toText(cid), node),
+      );
+    });
   };
 
   // Candid API methods
   public shared ({ caller }) func initialize(request : PdsInterface.InitializeRequest) : async Result.Result<(), Text> {
-    if (caller != owner and caller != deployer) {
-      return #err("Only the owner or deployer can initialize the PDS");
+    if (caller != owner) {
+      return #err("Only the owner can initialize the PDS");
     };
     // TODO prevent re-initialization?
     let (plcIndentifier, repository) : (DID.Plc.DID, ?Repository.Repository) = switch (request.plc) {
@@ -329,8 +556,8 @@ shared ({ caller = deployer }) persistent actor class Pds(
   };
 
   public shared ({ caller }) func createPlcDid(request : PdsInterface.CreatePlcRequest) : async Result.Result<Text, Text> {
-    if (caller != owner and caller != deployer) {
-      return #err("Only the owner or deployer can update the PLC identifier");
+    if (caller != owner) {
+      return #err("Only the owner can create the PLC identifier");
     };
     switch (await* didDirectoryHandler.create(request)) {
       case (#ok(did)) #ok(DID.Plc.toText(did));
@@ -339,8 +566,8 @@ shared ({ caller = deployer }) persistent actor class Pds(
   };
 
   public shared ({ caller }) func updatePlcDid(request : PdsInterface.UpdatePlcRequest) : async Result.Result<(), Text> {
-    if (caller != owner and caller != deployer) {
-      return #err("Only the owner or deployer can update the PLC identifier");
+    if (caller != owner) {
+      return #err("Only the owner can update the PLC identifier");
     };
     let did = switch (DID.Plc.fromText(request.did)) {
       case (#ok(did)) did;
