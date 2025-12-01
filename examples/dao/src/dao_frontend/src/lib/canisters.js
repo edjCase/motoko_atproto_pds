@@ -3,19 +3,39 @@ import { HttpAgent } from "@icp-sdk/core/agent";
 
 export const canisterId = process.env.CANISTER_ID_DAO_BACKEND;
 
-let isProd = process.env.DFX_NETWORK === "ic";
-
+const isProd = process.env.DFX_NETWORK === "ic";
 const url = isProd ? "https://icp-api.io" : "http://localhost:4943";
-// Created once globally at app initialization
-const agent = await HttpAgent.create({
-    host: url
-});
-if (!isProd) {
-    await agent.fetchRootKey();
+
+// Backend actor - will be updated when identity changes
+let backendActor = null;
+
+// Initialize with anonymous identity
+async function initializeBackend(identity = null) {
+    const agent = await HttpAgent.create({
+        host: url,
+        identity,
+    });
+
+    if (!isProd) {
+        await agent.fetchRootKey();
+    }
+
+    backendActor = createActor(canisterId, {
+        agent,
+    });
 }
 
+// Initialize on module load with anonymous identity
+await initializeBackend();
 
-// Created once globally and exported for use throughout the app
-export const backend = createActor(canisterId, {
-    agent,
+// Export the backend actor via a getter to ensure we always get the current instance
+export const backend = new Proxy({}, {
+    get(target, prop) {
+        return backendActor[prop];
+    }
 });
+
+// Function to update the backend actor when identity changes
+export function updateBackendActor(identity) {
+    return initializeBackend(identity);
+}

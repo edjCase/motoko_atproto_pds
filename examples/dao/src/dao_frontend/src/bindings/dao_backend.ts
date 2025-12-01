@@ -79,7 +79,9 @@ export interface InitializeOptions {
     plcIdentifier: string;
 }
 export interface DaoInterface {
+    addMember(id: Principal): Promise<Result>;
     createProposal(proposal: ProposalKind): Promise<Result_1>;
+    getMember(id: Principal): Promise<Member | null>;
     getMembers(): Promise<Array<Member>>;
     getPdsCanisterId(): Promise<Principal | null>;
     getProposal(proposalId: bigint): Promise<ProposalDetail | null>;
@@ -160,12 +162,20 @@ export interface Vote {
 }
 export interface dao_backendInterface extends DaoInterface {
 }
-import type { InitializeOptions as _InitializeOptions, InstallAndInitializeOptions as _InstallAndInitializeOptions, PagedResult as _PagedResult, ProposalData as _ProposalData, ProposalData__1 as _ProposalData__1, ProposalDetail as _ProposalDetail, ProposalKind as _ProposalKind, ProposalStatus as _ProposalStatus, Result as _Result, Result_1 as _Result_1, Time as _Time, Vote as _Vote } from "./declarations/dao_backend.did.d.ts";
+import type { InitializeOptions as _InitializeOptions, InstallAndInitializeOptions as _InstallAndInitializeOptions, Member as _Member, PagedResult as _PagedResult, ProposalData as _ProposalData, ProposalData__1 as _ProposalData__1, ProposalDetail as _ProposalDetail, ProposalKind as _ProposalKind, ProposalStatus as _ProposalStatus, Result as _Result, Result_1 as _Result_1, Time as _Time, Vote as _Vote } from "./declarations/dao_backend.did.d.ts";
 export class Dao_backend implements dao_backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>){}
+    async addMember(arg0: Principal): Promise<Result> {
+        const result = await this.actor.addMember(arg0);
+        return from_candid_Result_n1(result);
+    }
     async createProposal(arg0: ProposalKind): Promise<Result_1> {
-        const result = await this.actor.createProposal(to_candid_ProposalKind_n1(arg0));
-        return from_candid_Result_1_n10(result);
+        const result = await this.actor.createProposal(to_candid_ProposalKind_n3(arg0));
+        return from_candid_Result_1_n12(result);
+    }
+    async getMember(arg0: Principal): Promise<Member | null> {
+        const result = await this.actor.getMember(arg0);
+        return from_candid_opt_n14(result);
     }
     async getMembers(): Promise<Array<Member>> {
         const result = await this.actor.getMembers();
@@ -173,59 +183,62 @@ export class Dao_backend implements dao_backendInterface {
     }
     async getPdsCanisterId(): Promise<Principal | null> {
         const result = await this.actor.getPdsCanisterId();
-        return from_candid_opt_n12(result);
+        return from_candid_opt_n15(result);
     }
     async getProposal(arg0: bigint): Promise<ProposalDetail | null> {
         const result = await this.actor.getProposal(arg0);
-        return from_candid_opt_n13(result);
+        return from_candid_opt_n16(result);
     }
     async getProposals(arg0: bigint, arg1: bigint): Promise<PagedResult> {
         const result = await this.actor.getProposals(arg0, arg1);
-        return from_candid_PagedResult_n23(result);
+        return from_candid_PagedResult_n26(result);
     }
     async getVote(arg0: bigint, arg1: Principal): Promise<Vote | null> {
         const result = await this.actor.getVote(arg0, arg1);
-        return from_candid_opt_n26(result);
+        return from_candid_opt_n29(result);
     }
     async vote(arg0: bigint, arg1: boolean): Promise<Result> {
         const result = await this.actor.vote(arg0, arg1);
-        return from_candid_Result_n29(result);
+        return from_candid_Result_n1(result);
     }
 }
-function from_candid_PagedResult_n23(value: _PagedResult): PagedResult {
-    return from_candid_record_n24(value);
+function from_candid_PagedResult_n26(value: _PagedResult): PagedResult {
+    return from_candid_record_n27(value);
 }
-function from_candid_ProposalDetail_n14(value: _ProposalDetail): ProposalDetail {
-    return from_candid_record_n15(value);
+function from_candid_ProposalDetail_n17(value: _ProposalDetail): ProposalDetail {
+    return from_candid_record_n18(value);
 }
-function from_candid_ProposalStatus_n16(value: _ProposalStatus): ProposalStatus {
-    return from_candid_variant_n17(value);
+function from_candid_ProposalStatus_n19(value: _ProposalStatus): ProposalStatus {
+    return from_candid_variant_n20(value);
 }
-function from_candid_Result_1_n10(value: _Result_1): Result_1 {
-    return from_candid_variant_n11(value);
+function from_candid_Result_1_n12(value: _Result_1): Result_1 {
+    return from_candid_variant_n13(value);
 }
-function from_candid_Result_n29(value: _Result): Result {
-    return from_candid_variant_n30(value);
+function from_candid_Result_n1(value: _Result): Result {
+    return from_candid_variant_n2(value);
 }
-function from_candid_Vote_n27(value: _Vote): Vote {
-    return from_candid_record_n28(value);
+function from_candid_Vote_n30(value: _Vote): Vote {
+    return from_candid_record_n31(value);
 }
-function from_candid_opt_n12(value: [] | [Principal]): Principal | null {
+function from_candid_opt_n14(value: [] | [_Member]): Member | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n13(value: [] | [_ProposalDetail]): ProposalDetail | null {
-    return value.length === 0 ? null : from_candid_ProposalDetail_n14(value[0]);
-}
-function from_candid_opt_n19(value: [] | [boolean]): boolean | null {
+function from_candid_opt_n15(value: [] | [Principal]): Principal | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n22(value: [] | [bigint]): bigint | null {
+function from_candid_opt_n16(value: [] | [_ProposalDetail]): ProposalDetail | null {
+    return value.length === 0 ? null : from_candid_ProposalDetail_n17(value[0]);
+}
+function from_candid_opt_n22(value: [] | [boolean]): boolean | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n26(value: [] | [_Vote]): Vote | null {
-    return value.length === 0 ? null : from_candid_Vote_n27(value[0]);
+function from_candid_opt_n25(value: [] | [bigint]): bigint | null {
+    return value.length === 0 ? null : value[0];
 }
-function from_candid_record_n15(value: {
+function from_candid_opt_n29(value: [] | [_Vote]): Vote | null {
+    return value.length === 0 ? null : from_candid_Vote_n30(value[0]);
+}
+function from_candid_record_n18(value: {
     id: bigint;
     status: _ProposalStatus;
     title: string;
@@ -248,17 +261,17 @@ function from_candid_record_n15(value: {
 } {
     return {
         id: value.id,
-        status: from_candid_ProposalStatus_n16(value.status),
+        status: from_candid_ProposalStatus_n19(value.status),
         title: value.title,
         votesAgainst: value.votesAgainst,
         timeStart: value.timeStart,
         votesFor: value.votesFor,
         totalVotingPower: value.totalVotingPower,
         description: value.description,
-        timeEnd: record_opt_to_undefined(from_candid_opt_n22(value.timeEnd))
+        timeEnd: record_opt_to_undefined(from_candid_opt_n25(value.timeEnd))
     };
 }
-function from_candid_record_n18(value: {
+function from_candid_record_n21(value: {
     executingTime: _Time;
     error: string;
     failedTime: _Time;
@@ -273,10 +286,10 @@ function from_candid_record_n18(value: {
         executingTime: value.executingTime,
         error: value.error,
         failedTime: value.failedTime,
-        choice: record_opt_to_undefined(from_candid_opt_n19(value.choice))
+        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice))
     };
 }
-function from_candid_record_n20(value: {
+function from_candid_record_n23(value: {
     executingTime: _Time;
     choice: [] | [boolean];
 }): {
@@ -285,10 +298,10 @@ function from_candid_record_n20(value: {
 } {
     return {
         executingTime: value.executingTime,
-        choice: record_opt_to_undefined(from_candid_opt_n19(value.choice))
+        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice))
     };
 }
-function from_candid_record_n21(value: {
+function from_candid_record_n24(value: {
     executingTime: _Time;
     choice: [] | [boolean];
     executedTime: _Time;
@@ -299,11 +312,11 @@ function from_candid_record_n21(value: {
 } {
     return {
         executingTime: value.executingTime,
-        choice: record_opt_to_undefined(from_candid_opt_n19(value.choice)),
+        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice)),
         executedTime: value.executedTime
     };
 }
-function from_candid_record_n24(value: {
+function from_candid_record_n27(value: {
     data: Array<_ProposalDetail>;
     count: bigint;
     totalCount: bigint;
@@ -315,13 +328,13 @@ function from_candid_record_n24(value: {
     offset: bigint;
 } {
     return {
-        data: from_candid_vec_n25(value.data),
+        data: from_candid_vec_n28(value.data),
         count: value.count,
         totalCount: value.totalCount,
         offset: value.offset
     };
 }
-function from_candid_record_n28(value: {
+function from_candid_record_n31(value: {
     votingPower: bigint;
     choice: [] | [boolean];
 }): {
@@ -330,10 +343,10 @@ function from_candid_record_n28(value: {
 } {
     return {
         votingPower: value.votingPower,
-        choice: record_opt_to_undefined(from_candid_opt_n19(value.choice))
+        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice))
     };
 }
-function from_candid_variant_n11(value: {
+function from_candid_variant_n13(value: {
     ok: bigint;
 } | {
     err: string;
@@ -352,7 +365,26 @@ function from_candid_variant_n11(value: {
         err: value.err
     } : value;
 }
-function from_candid_variant_n17(value: {
+function from_candid_variant_n2(value: {
+    ok: null;
+} | {
+    err: string;
+}): {
+    __kind__: "ok";
+    ok: null;
+} | {
+    __kind__: "err";
+    err: string;
+} {
+    return "ok" in value ? {
+        __kind__: "ok",
+        ok: value.ok
+    } : "err" in value ? {
+        __kind__: "err",
+        err: value.err
+    } : value;
+}
+function from_candid_variant_n20(value: {
     failedToExecute: {
         executingTime: _Time;
         error: string;
@@ -399,53 +431,49 @@ function from_candid_variant_n17(value: {
 } {
     return "failedToExecute" in value ? {
         __kind__: "failedToExecute",
-        failedToExecute: from_candid_record_n18(value.failedToExecute)
+        failedToExecute: from_candid_record_n21(value.failedToExecute)
     } : "open" in value ? {
         __kind__: "open",
         open: value.open
     } : "executing" in value ? {
         __kind__: "executing",
-        executing: from_candid_record_n20(value.executing)
+        executing: from_candid_record_n23(value.executing)
     } : "executed" in value ? {
         __kind__: "executed",
-        executed: from_candid_record_n21(value.executed)
+        executed: from_candid_record_n24(value.executed)
     } : value;
 }
-function from_candid_variant_n30(value: {
-    ok: null;
-} | {
-    err: string;
-}): {
-    __kind__: "ok";
-    ok: null;
-} | {
-    __kind__: "err";
-    err: string;
-} {
-    return "ok" in value ? {
-        __kind__: "ok",
-        ok: value.ok
-    } : "err" in value ? {
-        __kind__: "err",
-        err: value.err
-    } : value;
+function from_candid_vec_n28(value: Array<_ProposalDetail>): Array<ProposalDetail> {
+    return value.map((x)=>from_candid_ProposalDetail_n17(x));
 }
-function from_candid_vec_n25(value: Array<_ProposalDetail>): Array<ProposalDetail> {
-    return value.map((x)=>from_candid_ProposalDetail_n14(x));
-}
-function to_candid_InitializeOptions_n6(value: InitializeOptions): _InitializeOptions {
-    return to_candid_record_n7(value);
-}
-function to_candid_InstallAndInitializeOptions_n8(value: InstallAndInitializeOptions): _InstallAndInitializeOptions {
+function to_candid_InitializeOptions_n8(value: InitializeOptions): _InitializeOptions {
     return to_candid_record_n9(value);
 }
-function to_candid_ProposalData__1_n3(value: ProposalData__1): _ProposalData__1 {
-    return to_candid_record_n4(value);
+function to_candid_InstallAndInitializeOptions_n10(value: InstallAndInitializeOptions): _InstallAndInitializeOptions {
+    return to_candid_record_n11(value);
 }
-function to_candid_ProposalKind_n1(value: ProposalKind): _ProposalKind {
-    return to_candid_variant_n2(value);
+function to_candid_ProposalData__1_n5(value: ProposalData__1): _ProposalData__1 {
+    return to_candid_record_n6(value);
 }
-function to_candid_record_n4(value: {
+function to_candid_ProposalKind_n3(value: ProposalKind): _ProposalKind {
+    return to_candid_variant_n4(value);
+}
+function to_candid_record_n11(value: {
+    initializeOptions: InitializeOptions;
+    initArgs: Uint8Array;
+    wasmModule: Uint8Array;
+}): {
+    initializeOptions: _InitializeOptions;
+    initArgs: Uint8Array;
+    wasmModule: Uint8Array;
+} {
+    return {
+        initializeOptions: to_candid_InitializeOptions_n8(value.initializeOptions),
+        initArgs: value.initArgs,
+        wasmModule: value.wasmModule
+    };
+}
+function to_candid_record_n6(value: {
     id: Principal;
     kind: {
         __kind__: "set";
@@ -469,10 +497,10 @@ function to_candid_record_n4(value: {
 } {
     return {
         id: value.id,
-        kind: to_candid_variant_n5(value.kind)
+        kind: to_candid_variant_n7(value.kind)
     };
 }
-function to_candid_record_n7(value: {
+function to_candid_record_n9(value: {
     hostname: string;
     serviceSubdomain?: string;
     plcIdentifier: string;
@@ -487,22 +515,7 @@ function to_candid_record_n7(value: {
         plcIdentifier: value.plcIdentifier
     };
 }
-function to_candid_record_n9(value: {
-    initializeOptions: InitializeOptions;
-    initArgs: Uint8Array;
-    wasmModule: Uint8Array;
-}): {
-    initializeOptions: _InitializeOptions;
-    initArgs: Uint8Array;
-    wasmModule: Uint8Array;
-} {
-    return {
-        initializeOptions: to_candid_InitializeOptions_n6(value.initializeOptions),
-        initArgs: value.initArgs,
-        wasmModule: value.wasmModule
-    };
-}
-function to_candid_variant_n2(value: {
+function to_candid_variant_n4(value: {
     __kind__: "setPdsCanister";
     setPdsCanister: ProposalData__1;
 } | {
@@ -514,12 +527,12 @@ function to_candid_variant_n2(value: {
     postToBluesky: _ProposalData;
 } {
     return value.__kind__ === "setPdsCanister" ? {
-        setPdsCanister: to_candid_ProposalData__1_n3(value.setPdsCanister)
+        setPdsCanister: to_candid_ProposalData__1_n5(value.setPdsCanister)
     } : value.__kind__ === "postToBluesky" ? {
         postToBluesky: value.postToBluesky
     } : value;
 }
-function to_candid_variant_n5(value: {
+function to_candid_variant_n7(value: {
     __kind__: "set";
     set: null;
 } | {
@@ -538,9 +551,9 @@ function to_candid_variant_n5(value: {
     return value.__kind__ === "set" ? {
         set: value.set
     } : value.__kind__ === "installAndInitialize" ? {
-        installAndInitialize: to_candid_InstallAndInitializeOptions_n8(value.installAndInitialize)
+        installAndInitialize: to_candid_InstallAndInitializeOptions_n10(value.installAndInitialize)
     } : value.__kind__ === "initialize" ? {
-        initialize: to_candid_InitializeOptions_n6(value.initialize)
+        initialize: to_candid_InitializeOptions_n8(value.initialize)
     } : value;
 }
 export interface CreateActorOptions {

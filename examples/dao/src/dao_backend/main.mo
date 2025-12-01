@@ -8,6 +8,7 @@ import DaoInterface "./DaoInterface";
 import PostToBlueskyProposal "./Proposals/PostToBlueskyProposal";
 import SetPdsCanisterProposal "./Proposals/SetPdsCanisterProposal";
 import BTree "mo:stableheapbtreemap@1/BTree";
+import PureMap "mo:core@1/pure/Map";
 
 shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface.Actor {
 
@@ -20,9 +21,10 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
   };
 
   // DAO configuration
-  var members : [DaoInterface.Member] = [
-    { id = deployer; votingPower = 1 } // Initial member is deployer
-  ];
+  var membersMap = PureMap.singleton<Principal, DaoInterface.MemberData>(
+    deployer,
+    { votingPower = 1 },
+  );
   var pdsCanisterId : ?Principal = null; // Will be set by owner
 
   // System functions for upgrades
@@ -79,6 +81,36 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
 
   public query func getPdsCanisterId() : async ?Principal {
     pdsCanisterId;
+  };
+
+  public shared ({ caller }) func addMember(id : Principal) : async Result.Result<(), Text> {
+    let isCallerMember = PureMap.containsKey(members, caller);
+    if (not isCallerMember) {
+      return #err("Only existing members can add new members");
+    };
+    let (newMembersMap, alreadyExists) = PureMap.insert(
+      members,
+      id,
+      { votingPower = 1 },
+    );
+    if (alreadyExists) {
+      return #err("Member with this Principal already exists: " # Principal.toText(id));
+    };
+    members := newMembersMap;
+    #ok;
+  };
+
+  public query func getMember(id : Principal) : async ?DaoInterface.Member {
+    PureMap.get(membersMap, id);
+  };
+
+  public func removeMember(id : Principal) : async Result.Result<(), Text> {
+    let (newMembersMap, existed) = PureMap.delete(membersMap, id);
+    if (not existed) {
+      return #err("Member with this Principal does not exist: " # Principal.toText(id));
+    };
+    membersMap := newMembersMap;
+    #ok;
   };
 
   public query func getMembers() : async [DaoInterface.Member] {

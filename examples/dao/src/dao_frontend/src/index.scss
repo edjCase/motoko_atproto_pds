@@ -311,6 +311,76 @@ label {
   text-align: center;
 }
 
+.auth-section {
+  background: rgba(0, 255, 0, 0.05);
+  border: 2px solid #00ff00;
+  padding: 20px;
+  border-radius: 4px;
+  margin-bottom: 30px;
+}
+
+.auth-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.auth-info > div {
+  flex: 1;
+  min-width: 200px;
+}
+
+.auth-button {
+  white-space: nowrap;
+  margin: 0;
+}
+
+.principal-display {
+  color: #00dd00;
+  font-family: 'Courier New', monospace;
+  word-break: break-all;
+  font-size: 0.9rem;
+  margin-top: 5px;
+}
+
+.auth-required-message {
+  background: rgba(255, 255, 0, 0.1);
+  border: 2px solid #ffff00;
+  color: #ffff00;
+  padding: 15px;
+  border-radius: 4px;
+  text-align: center;
+  margin: 10px 0;
+}
+
+.auth-loading-text {
+  color: #00aa00;
+  font-size: 0.9rem;
+  margin-top: 5px;
+}
+
+.member-status {
+  color: #00dd00;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  margin-top: 5px;
+}
+
+.member-active {
+  color: #00ff00;
+}
+
+.member-inactive {
+  color: #ffaa00;
+}
+
+form.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 .tabs {
   display: flex;
   gap: 10px;
@@ -344,19 +414,257 @@ label {
 }
 
 @media (max-width: 768px) {
+  body {
+    padding: 10px;
+  }
+
   .terminal-container {
-    padding: 20px;
+    padding: 15px;
+    border-radius: 4px;
   }
   
   h1 {
-    font-size: 1.5rem;
+    font-size: 1.3rem;
+    padding-bottom: 8px;
+    margin-bottom: 20px;
+    word-break: break-word;
+  }
+
+  h2 {
+    font-size: 1.2rem;
+    margin-top: 20px;
+  }
+
+  h3 {
+    font-size: 1rem;
+  }
+
+  .section {
+    padding: 15px;
+    margin-bottom: 20px;
+  }
+
+  .auth-section {
+    padding: 15px;
+  }
+
+  .auth-info {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+
+  .auth-info > div {
+    min-width: unset;
+  }
+
+  .auth-button {
+    width: 100%;
+    margin: 0;
+  }
+
+  .principal-display {
+    font-size: 0.75rem;
+    word-break: break-all;
+  }
+
+  .tabs {
+    gap: 5px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .proposal-card {
+    padding: 15px;
   }
   
   .proposal-header {
     flex-direction: column;
+    gap: 10px;
+  }
+
+  .proposal-status {
+    align-self: flex-start;
+    font-size: 0.8rem;
+  }
+
+  .proposal-title {
+    font-size: 1.1rem;
+  }
+
+  .proposal-description {
+    font-size: 0.9rem;
   }
   
   .vote-info {
     grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .vote-stat {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .vote-label {
+    font-size: 0.85rem;
+  }
+
+  .vote-value {
+    font-size: 1rem;
+  }
+
+  .vote-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .vote-buttons button {
+    width: 100%;
+    margin: 0;
+  }
+
+  button {
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    margin-right: 0;
+  }
+
+  input, textarea, select {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 12px;
+  }
+
+  .form-group {
+    margin-bottom: 15px;
+  }
+
+  label {
+    font-size: 0.95rem;
+  }
+
+  .timestamp {
+    font-size: 0.8rem;
+  }
+
+  .auth-required-message {
+    padding: 12px;
+    font-size: 0.9rem;
+  }
+
+  .error, .success {
+    padding: 12px;
+    font-size: 0.9rem;
+  }
+
+  .loading {
+    padding: 30px 15px;
+    font-size: 1rem;
+  }
+
+  .empty-state {
+    padding: 30px 15px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 5px;
+  }
+
+  .terminal-container {
+    padding: 10px;
+    border-width: 1px;
+  }
+
+  h1 {
+    font-size: 1.1rem;
+    margin-bottom: 15px;
+  }
+
+  h2 {
+    font-size: 1rem;
+  }
+
+  .section {
+    padding: 10px;
+  }
+
+  .auth-section {
+    padding: 10px;
+  }
+
+  .proposal-card {
+    padding: 10px;
+  }
+
+  .proposal-title {
+    font-size: 1rem;
+  }
+
+  .principal-display {
+    font-size: 0.7rem;
+  }
+
+  button {
+    padding: 10px 14px;
+    font-size: 0.9rem;
+  }
+
+  input, textarea, select {
+    padding: 10px;
+  }
+
+  .vote-info {
+    padding: 8px;
+  }
+}
+
+/* Landscape mobile specific */
+@media (max-width: 768px) and (orientation: landscape) {
+  .terminal-container {
+    padding: 10px 15px;
+  }
+
+  h1 {
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+  }
+
+  .section {
+    padding: 12px;
+  }
+
+  .proposal-card {
+    padding: 12px;
+  }
+}
+
+/* Tablet specific */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .terminal-container {
+    padding: 30px;
+  }
+
+  h1 {
+    font-size: 1.8rem;
+  }
+
+  .proposal-header {
+    flex-direction: row;
+  }
+
+  .vote-info {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 }

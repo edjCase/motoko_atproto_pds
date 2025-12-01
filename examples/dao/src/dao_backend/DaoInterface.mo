@@ -1,6 +1,6 @@
 import Principal "mo:core@1/Principal";
 import Proposal "mo:dao-proposal-engine@2/Proposal";
-import PostProposal "./Proposals/PostProposal";
+import PostToBlueskyProposal "./Proposals/PostToBlueskyProposal";
 import SetPdsCanisterProposal "./Proposals/SetPdsCanisterProposal";
 
 module {
@@ -8,13 +8,16 @@ module {
   // Types for our DAO
 
   public type ProposalKind = {
-    #postToBluesky : PostProposal.ProposalData;
+    #postToBluesky : PostToBlueskyProposal.ProposalData;
     #setPdsCanister : SetPdsCanisterProposal.ProposalData;
   };
 
-  public type Member = {
-    id : Principal;
+  public type MemberData = {
     votingPower : Nat;
+  };
+
+  public type Member = MemberData and {
+    id : Principal;
   };
 
   public type ProposalDetail = {

@@ -2,6 +2,9 @@
     import "../index.scss";
     import { backend } from "$lib/canisters";
     import { onMount } from "svelte";
+    import { authStore } from "$lib/stores/auth";
+    import { initAuth, login, logout } from "$lib/auth";
+    import { Principal } from "@icp-sdk/core/principal";
 
     // State management
     let proposals = [];
@@ -24,18 +27,79 @@
     const itemsPerPage = 10;
     let totalProposals = 0;
 
-    // Authentication placeholder - will be replaced with real auth
-    let currentUser = null; // Will be Principal when auth is implemented
-    let isAuthenticated = false;
+    // Authentication state from store
+    $: isAuthenticated = $authStore.isAuthenticated;
+    $: principal = $authStore.principal;
+    $: authLoading = $authStore.isLoading;
+
+    // Member state
+    let isMember = false;
+    let memberCheckLoading = false;
+    let votingPower = 0;
+
+    // Check membership when authenticated
+    $: if (isAuthenticated && principal) {
+        checkMembership();
+    } else {
+        isMember = false;
+        votingPower = 0;
+    }
+
+    async function checkMembership() {
+        if (!principal) return;
+
+        memberCheckLoading = true;
+        try {
+            const result = await backend.getMember(
+                Principal.fromText(principal)
+            );
+            if (result != null) {
+                isMember = true;
+                votingPower = Number(result.votingPower);
+            } else {
+                isMember = false;
+                votingPower = 0;
+            }
+        } catch (e) {
+            console.error("Error checking membership:", e);
+            isMember = false;
+            votingPower = 0;
+        } finally {
+            memberCheckLoading = false;
+        }
+    }
 
     onMount(async () => {
         try {
+            // Initialize authentication
+            await initAuth();
             await loadProposals();
         } catch (e) {
             console.error("Error during onMount:", e);
         }
-        // TODO: Initialize authentication here
     });
+
+    async function handleLogin() {
+        try {
+            await login();
+            // Reload proposals after login to refresh with authenticated identity
+            await loadProposals();
+        } catch (e) {
+            error = `Login failed: ${e.message || e}`;
+            console.error("Login error:", e);
+        }
+    }
+
+    async function handleLogout() {
+        try {
+            await logout();
+            // Reload proposals after logout
+            await loadProposals();
+        } catch (e) {
+            error = `Logout failed: ${e.message || e}`;
+            console.error("Logout error:", e);
+        }
+    }
 
     async function loadProposals() {
         loading = true;
@@ -212,13 +276,52 @@
     <div class="terminal-container">
         <h1>DAO Governance Terminal<span class="blink">_</span></h1>
 
-        <!-- Authentication Placeholder -->
-        <div class="auth-placeholder">
-            <p><strong>⚠ Authentication Coming Soon</strong></p>
-            <p>
-                Login functionality will be integrated here. For now, using
-                anonymous principal for testing.
-            </p>
+        <!-- Authentication Section -->
+        <div class="auth-section">
+            {#if authLoading}
+                <div class="auth-info">
+                    <div>
+                        <strong
+                            >🔄 Checking Authentication<span class="blink"
+                                >...</span
+                            ></strong
+                        >
+                        <p class="auth-loading-text">Please wait</p>
+                    </div>
+                </div>
+            {:else if isAuthenticated}
+                <div class="auth-info">
+                    <div>
+                        <strong>🔐 Authenticated</strong>
+                        <p class="principal-display">Principal: {principal}</p>
+                        {#if memberCheckLoading}
+                            <p class="member-status">
+                                Checking membership<span class="blink">...</span
+                                >
+                            </p>
+                        {:else if isMember}
+                            <p class="member-status member-active">
+                                ✓ DAO Member | Voting Power: {votingPower}
+                            </p>
+                        {:else}
+                            <p class="member-status member-inactive">
+                                ⚠ Not a DAO member
+                            </p>
+                        {/if}
+                    </div>
+                    <button class="auth-button" on:click={handleLogout}>
+                        Logout
+                    </button>
+                </div>
+            {:else}
+                <div class="auth-info">
+                    <p><strong>⚠ Not Authenticated</strong></p>
+                    <p>Using anonymous principal. Login for full access.</p>
+                    <button class="auth-button primary" on:click={handleLogin}>
+                        Login with Internet Identity
+                    </button>
+                </div>
+            {/if}
         </div>
 
         <!-- Messages -->
@@ -331,7 +434,7 @@
                             {/if}
 
                             <!-- Voting buttons -->
-                            {#if canVote(proposal.status)}
+                            {#if isAuthenticated && isMember && canVote(proposal.status)}
                                 <div class="vote-buttons">
                                     <button
                                         class="primary"
@@ -348,6 +451,15 @@
                                     >
                                         Vote Against
                                     </button>
+                                </div>
+                            {:else if !isAuthenticated && canVote(proposal.status)}
+                                <div class="auth-required-message">
+                                    🔒 Login required to vote on proposals
+                                </div>
+                            {:else if isAuthenticated && !isMember && canVote(proposal.status)}
+                                <div class="auth-required-message">
+                                    👥 You must be a DAO member to vote on
+                                    proposals
                                 </div>
                             {/if}
 
@@ -390,10 +502,35 @@
             <div class="section">
                 <h2>Create New Proposal</h2>
 
-                <form on:submit|preventDefault={createProposal}>
+                {#if !isAuthenticated}
+                    <div
+                        class="auth-required-message"
+                        style="margin-bottom: 20px;"
+                    >
+                        🔒 You must be logged in to create proposals. Please
+                        login with Internet Identity to continue.
+                    </div>
+                {:else if !isMember}
+                    <div
+                        class="auth-required-message"
+                        style="margin-bottom: 20px;"
+                    >
+                        👥 You must be a DAO member to create proposals. Only
+                        DAO members have governance rights.
+                    </div>
+                {/if}
+
+                <form
+                    on:submit|preventDefault={createProposal}
+                    class:disabled={!isAuthenticated || !isMember}
+                >
                     <div class="form-group">
                         <label for="proposalType">Proposal Type:</label>
-                        <select id="proposalType" bind:value={proposalType}>
+                        <select
+                            id="proposalType"
+                            bind:value={proposalType}
+                            disabled={!isAuthenticated || !isMember}
+                        >
                             <option value="postToBluesky"
                                 >Post to Bluesky</option
                             >
@@ -411,6 +548,7 @@
                                 bind:value={postMessage}
                                 placeholder="Enter the message to post to Bluesky (max 300 characters)"
                                 maxlength="300"
+                                disabled={!isAuthenticated || !isMember}
                             ></textarea>
                             <small style="color: #00aa00;"
                                 >{postMessage.length}/300 characters</small
@@ -426,12 +564,17 @@
                                 id="pdsCanisterId"
                                 bind:value={pdsCanisterId}
                                 placeholder="e.g., rrkah-fqaaa-aaaaa-aaaaq-cai"
+                                disabled={!isAuthenticated || !isMember}
                             />
                         </div>
 
                         <div class="form-group">
                             <label for="pdsOperation">Operation:</label>
-                            <select id="pdsOperation" bind:value={pdsOperation}>
+                            <select
+                                id="pdsOperation"
+                                bind:value={pdsOperation}
+                                disabled={!isAuthenticated || !isMember}
+                            >
                                 <option value="set"
                                     >Set (just reference existing canister)</option
                                 >
@@ -449,6 +592,7 @@
                                     id="hostname"
                                     bind:value={hostname}
                                     placeholder="e.g., mydao.bsky.social"
+                                    disabled={!isAuthenticated || !isMember}
                                 />
                             </div>
 
@@ -461,6 +605,7 @@
                                     id="serviceSubdomain"
                                     bind:value={serviceSubdomain}
                                     placeholder="e.g., service"
+                                    disabled={!isAuthenticated || !isMember}
                                 />
                             </div>
 
@@ -473,12 +618,17 @@
                                     id="plcIdentifier"
                                     bind:value={plcIdentifier}
                                     placeholder="e.g., did:plc:..."
+                                    disabled={!isAuthenticated || !isMember}
                                 />
                             </div>
                         {/if}
                     {/if}
 
-                    <button type="submit" class="primary" disabled={loading}>
+                    <button
+                        type="submit"
+                        class="primary"
+                        disabled={loading || !isAuthenticated || !isMember}
+                    >
                         {loading ? "Creating..." : "Create Proposal"}
                     </button>
                 </form>
