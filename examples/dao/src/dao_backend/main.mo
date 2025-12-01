@@ -9,8 +9,59 @@ import PostToBlueskyProposal "./Proposals/PostToBlueskyProposal";
 import SetPdsCanisterProposal "./Proposals/SetPdsCanisterProposal";
 import BTree "mo:stableheapbtreemap@1/BTree";
 import PureMap "mo:core@1/pure/Map";
+import ICRC120 "mo:icrc120-mo@0";
+import ClassPlus "mo:class-plus@0";
 
 shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface.Actor {
+
+  let thisPrincipal = Principal.fromActor(this);
+  stable var _owner = deployer.caller;
+
+  // Initialize ClassPlus manager
+  let initManager = ClassPlus.ClassPlusInitializationManager(
+    _owner,
+    thisPrincipal,
+    true,
+  );
+
+  // State management
+  stable var orchestrator_state = ICRC120.initialState();
+
+  // Environment function
+  private func getEnvironment() : ICRC120.Environment {
+    {
+      log = {
+        log_debug = func(msg : Text) { /* your logging */ };
+        log_info = func(msg : Text) { /* your logging */ };
+        log_error = func(msg : Text) { /* your logging */ };
+      };
+      wasm = {
+        get_wasm = func(hash : Blob) : async* Result.Result<Blob, Text> {
+          // Implement your wasm retrieval logic
+          #err("Not implemented");
+        };
+      };
+      timer = {
+        // Timer configuration
+        set_timer = func(nanoseconds : Nat, job : () -> async* ()) : Nat {
+          // Implement timer logic
+          0;
+        };
+      };
+    };
+  };
+
+  // Initialize ICRC120 orchestrator
+  let orchestratorFactory = ICRC120.Init<system>({
+    manager = initManager;
+    initialState = orchestrator_state;
+    args = null;
+    pullEnvironment = ?getEnvironment;
+    onInitialize = null;
+    onStorageChange = func(state) {
+      orchestrator_state := state;
+    };
+  });
 
   // Stable storage for upgrades
   var stableProposalData : ProposalEngine.StableData<DaoInterface.ProposalKind> = {
@@ -49,7 +100,7 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
         };
       };
       case (#setPdsCanister(setPdsProposal)) {
-        await* SetPdsCanisterProposal.onAdopt(setPdsProposal, updatePdsCanisterId);
+        await* SetPdsCanisterProposal.onAdopt(setPdsProposal, orchestratorFactory, updatePdsCanisterId);
       };
     };
   };

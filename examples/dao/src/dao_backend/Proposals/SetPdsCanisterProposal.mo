@@ -6,6 +6,7 @@ import Principal "mo:core@1/Principal";
 import PdsInterface "../../../../../src/PdsInterface";
 import { ic } "mo:ic@3";
 import List "mo:core@1/List";
+import ICRC120Service "mo:icrc120-mo@0/service";
 
 module {
 
@@ -25,58 +26,102 @@ module {
   };
 
   public type InstallAndInitializeOptions = {
-    wasmModule : Blob;
+    wasmHash : Blob;
     initArgs : Blob;
     initializeOptions : InitializeOptions;
   };
 
   public func onAdopt(
-    proposal : ProposalData,
+    proposalData : ProposalData,
+    orchestratorFactory : () -> ICRC120Service.Service,
     updatePdsCanisterId : (Principal) -> (),
   ) : async* Result.Result<(), Text> {
-    switch (proposal.kind) {
+    switch (proposalData.kind) {
       case (#set) {
         // Simply set the PDS canister ID
-        updatePdsCanisterId(proposal.id);
+        updatePdsCanisterId(proposalData.id);
         #ok;
       };
       case (#initialize(initOptions)) {
         // Update the PDS canister ID after successful initialization
-        updatePdsCanisterId(proposal.id);
+        updatePdsCanisterId(proposalData.id);
         // Initialize an existing PDS canister
-        await* initialize(proposal.id, initOptions);
+        await* initialize(proposalData.id, initOptions);
       };
       case (#installAndInitialize(installOptions)) {
 
         // Update the PDS canister ID after successful initialization
-        updatePdsCanisterId(proposal.id);
+        updatePdsCanisterId(proposalData.id);
 
-        switch (await* install(proposal.id, installOptions)) {
-          case (#ok(_)) ();
+        let requestId = switch (await* install(proposalData.id, orchestratorFactory, installOptions)) {
+          case (#ok(requestId)) requestId;
           case (#err(error)) return #err(error);
         };
 
+        // TODO validate request completion
+        // var tries = 0;
+        // label l loop {
+        //   let events = await orchestratorFactory().icrc120_get_events({
+        //     filter = ?{
+        //       canister = ?proposalData.id;
+        //       event_types = ?[#upgrade_finished];
+        //       start_time = null;
+        //       end_time = null;
+        //     };
+        //     prev = null;
+        //     take = ?10;
+        //   });
+
+        //   // Find events related to this request
+        //   for (event in events.vals()) {
+        //     switch (event.event_type) {
+        //       case (#upgrade_finished) {
+        //         if (event.details.id == requestId) {
+        //           break l;
+        //         };
+        //       };
+        //       case (_) ();
+        //     };
+        //   };
+        //   // TODO sleep possible?
+        //   tries += 1;
+        //   if (tries >= 30) {
+        //     return #err("Timeout waiting for PDS canister upgrade to complete");
+        //   };
+        // };
+
         // Initialize an existing PDS canister
-        await* initialize(proposal.id, installOptions.initializeOptions);
+        await* initialize(proposalData.id, installOptions.initializeOptions);
       };
     };
   };
 
   func install(
     pdsCanisterId : Principal,
+    orchestratorFactory : () -> ICRC120Service.Service,
     installOptions : InstallAndInitializeOptions,
-  ) : async* Result.Result<(), Text> {
+  ) : async* Result.Result<Nat, Text> {
     try {
-      // Install the WASM module on the target canister
-      await ic.install_code({
+      let upgradeOptions = [{
         canister_id = pdsCanisterId;
+        hash = installOptions.wasmHash;
+        args = installOptions.initArgs;
+        stop = true;
+        restart = true;
+        snapshot = true; /* Always snapshot for DAO operations */
+        timeout = 600_000_000_000; /* 10 minutes for DAO operations */
         mode = #install;
-        wasm_module = installOptions.wasmModule;
-        arg = installOptions.initArgs;
-        sender_canister_version = null;
-      });
+        parameters = null;
+      }];
 
-      #ok;
+      let results = await orchestratorFactory().icrc120_upgrade_to(upgradeOptions);
+      switch (results[0]) {
+        case (#Ok(requestId)) #ok(requestId);
+        case (#Err(#Unauthorized)) #err("Not authorized for this operation");
+        case (#Err(#WasmUnavailable)) #err("Wasm module not found");
+        case (#Err(#InvalidPayment)) #err("Invalid payment for upgrade");
+        case (#Err(#Generic(msg))) #err("Operation failed: " # msg);
+      };
     } catch (error) {
       let errorMsg = "Error installing PDS canister: " # Error.message(error);
       Debug.print(errorMsg);
@@ -134,8 +179,8 @@ module {
         };
       };
       case (#installAndInitialize(installOptions)) {
-        if (installOptions.wasmModule.size() == 0) {
-          List.add(errors, "WASM module cannot be empty for install operation");
+        if (installOptions.wasmHash.size() == 0) {
+          List.add(errors, "WASM hash cannot be empty for install operation");
         };
         if (Text.size(installOptions.initializeOptions.hostname) == 0) {
           List.add(errors, "Hostname cannot be empty for install and initialize operation");
