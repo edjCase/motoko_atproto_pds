@@ -23,14 +23,7 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
   var orchestratorStableData : ?Orchestrator.StableData = null;
   var loggerStableData : ?Logger.StableData = null;
   var wasmStoreStableData : ?WasmStore.LocalStableData = null;
-
-  var timerState = TimerTool.init(
-    TimerTool.initialState(),
-    #v0_1_0(#id),
-    null,
-    deployer,
-    daoPrincipal,
-  );
+  var timerState : ?TimerTool.State = null;
 
   // Stable storage for upgrades
   var stableProposalData : ProposalEngine.StableData<DaoInterface.ProposalKind> = {
@@ -48,13 +41,19 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
   var pdsCanisterId : ?Principal = null; // Will be set by DAO
 
   transient let timerTool = TimerTool.TimerTool(
-    ?timerState,
+    null,
     deployer,
     daoPrincipal,
     null,
-    null,
+    ?{
+      advanced = null;
+      syncUnsafe = null;
+      reportExecution = null;
+      reportError = null;
+      reportBatch = null;
+    },
     func(newState : TimerTool.State) {
-      timerState := newState;
+      timerState := ?newState;
     },
   );
 
@@ -135,8 +134,10 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
 
   public func addWasmChunk(request : DaoInterface.AddWasmChunkRequest) : async Result.Result<(), Text> {
     // TODO auth
-    wasmStore.addChunk(request.wasmHash, request.index, request.chunk);
-    #ok;
+    switch (wasmStore.addChunk(request.wasmHash, request.index, request.chunk)) {
+      case (#ok) #ok;
+      case (#err(#wasmAlreadyExists)) #err("WASM already finalized, cannot add more chunks");
+    };
   };
 
   public func finalizeWasmChunks(wasmHash : Blob) : async Result.Result<(), Text> {

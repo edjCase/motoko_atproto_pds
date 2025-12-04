@@ -87,15 +87,28 @@ module {
       case (null) PureMap.empty<WasmHash, WasmData>();
     };
 
-    public func addChunk(wasmHash : WasmHash, index : Nat, chunk : Blob) : () {
+    public func addChunk(wasmHash : WasmHash, index : Nat, chunk : Blob) : Result.Result<(), { #wasmAlreadyExists }> {
+      if (PureMap.containsKey(wasmMap, Blob.compare, wasmHash)) {
+        return #err(#wasmAlreadyExists);
+      };
       let chunks : List.List<?Blob> = switch (PureMap.get(chunkMap, Blob.compare, wasmHash)) {
         case (?existingChunks) existingChunks;
-        case (null) List.empty<?Blob>();
+        case (null) {
+          let chunks = List.empty<?Blob>();
+          chunkMap := PureMap.add(
+            chunkMap,
+            Blob.compare,
+            wasmHash,
+            chunks,
+          );
+          chunks;
+        };
       };
       while (List.size(chunks) <= index) {
         List.add(chunks, null);
       };
       List.put(chunks, index, ?chunk);
+      #ok;
     };
 
     public func finalizeChunks(wasmHash : WasmHash) : Result.Result<(), FinalizeChunksError> {
