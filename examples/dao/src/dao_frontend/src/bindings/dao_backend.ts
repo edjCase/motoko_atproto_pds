@@ -71,7 +71,7 @@ export interface ProposalData {
 export interface InstallAndInitializeOptions {
     initializeOptions: InitializeOptions;
     initArgs: Uint8Array;
-    wasmModule: Uint8Array;
+    wasmHash: Uint8Array;
 }
 export interface InitializeOptions {
     hostname: string;
@@ -87,6 +87,7 @@ export interface DaoInterface {
     getProposal(proposalId: bigint): Promise<ProposalDetail | null>;
     getProposals(count: bigint, offset: bigint): Promise<PagedResult>;
     getVote(proposalId: bigint, voterId: Principal): Promise<Vote | null>;
+    removeMember(id: Principal): Promise<Result>;
     vote(proposalId: bigint, vote: boolean): Promise<Result>;
 }
 export type Result_1 = {
@@ -133,7 +134,6 @@ export interface ProposalDetail {
     timeEnd?: bigint;
 }
 export interface ProposalData__1 {
-    id: Principal;
     kind: {
         __kind__: "set";
         set: null;
@@ -144,6 +144,7 @@ export interface ProposalData__1 {
         __kind__: "initialize";
         initialize: InitializeOptions;
     };
+    canisterId: Principal;
 }
 export type Result = {
     __kind__: "ok";
@@ -196,6 +197,10 @@ export class Dao_backend implements dao_backendInterface {
     async getVote(arg0: bigint, arg1: Principal): Promise<Vote | null> {
         const result = await this.actor.getVote(arg0, arg1);
         return from_candid_opt_n29(result);
+    }
+    async removeMember(arg0: Principal): Promise<Result> {
+        const result = await this.actor.removeMember(arg0);
+        return from_candid_Result_n1(result);
     }
     async vote(arg0: bigint, arg1: boolean): Promise<Result> {
         const result = await this.actor.vote(arg0, arg1);
@@ -461,20 +466,19 @@ function to_candid_ProposalKind_n3(value: ProposalKind): _ProposalKind {
 function to_candid_record_n11(value: {
     initializeOptions: InitializeOptions;
     initArgs: Uint8Array;
-    wasmModule: Uint8Array;
+    wasmHash: Uint8Array;
 }): {
     initializeOptions: _InitializeOptions;
     initArgs: Uint8Array;
-    wasmModule: Uint8Array;
+    wasmHash: Uint8Array;
 } {
     return {
         initializeOptions: to_candid_InitializeOptions_n8(value.initializeOptions),
         initArgs: value.initArgs,
-        wasmModule: value.wasmModule
+        wasmHash: value.wasmHash
     };
 }
 function to_candid_record_n6(value: {
-    id: Principal;
     kind: {
         __kind__: "set";
         set: null;
@@ -485,8 +489,8 @@ function to_candid_record_n6(value: {
         __kind__: "initialize";
         initialize: InitializeOptions;
     };
+    canisterId: Principal;
 }): {
-    id: Principal;
     kind: {
         set: null;
     } | {
@@ -494,10 +498,11 @@ function to_candid_record_n6(value: {
     } | {
         initialize: _InitializeOptions;
     };
+    canisterId: Principal;
 } {
     return {
-        id: value.id,
-        kind: to_candid_variant_n7(value.kind)
+        kind: to_candid_variant_n7(value.kind),
+        canisterId: value.canisterId
     };
 }
 function to_candid_record_n9(value: {

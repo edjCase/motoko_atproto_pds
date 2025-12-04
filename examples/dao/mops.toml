@@ -7,3 +7,5 @@
 "atproto@0" = "../../../motoko_atproto/"
 "icrc120-mo@0" = "../../../icrc120.mo/"
 "class-plus@0" = "0.0.2"
+"timer-tool@0" = "0.1.1"
+"stable-local-log@0" = "0.1.1"

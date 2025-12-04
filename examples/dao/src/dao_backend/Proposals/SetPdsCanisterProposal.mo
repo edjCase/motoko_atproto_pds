@@ -6,12 +6,12 @@ import Principal "mo:core@1/Principal";
 import PdsInterface "../../../../../src/PdsInterface";
 import { ic } "mo:ic@3";
 import List "mo:core@1/List";
-import ICRC120Service "mo:icrc120-mo@0/service";
+import ICRC120 "mo:icrc120-mo@0";
 
 module {
 
   public type ProposalData = {
-    id : Principal;
+    canisterId : Principal;
     kind : {
       #set;
       #initialize : InitializeOptions;
@@ -32,28 +32,29 @@ module {
   };
 
   public func onAdopt(
+    daoPrincipal : Principal,
     proposalData : ProposalData,
-    orchestratorFactory : () -> ICRC120Service.Service,
+    orchestratorFactory : () -> ICRC120.ICRC120,
     updatePdsCanisterId : (Principal) -> (),
   ) : async* Result.Result<(), Text> {
     switch (proposalData.kind) {
       case (#set) {
         // Simply set the PDS canister ID
-        updatePdsCanisterId(proposalData.id);
+        updatePdsCanisterId(proposalData.canisterId);
         #ok;
       };
       case (#initialize(initOptions)) {
         // Update the PDS canister ID after successful initialization
-        updatePdsCanisterId(proposalData.id);
+        updatePdsCanisterId(proposalData.canisterId);
         // Initialize an existing PDS canister
-        await* initialize(proposalData.id, initOptions);
+        await* initialize(proposalData.canisterId, initOptions);
       };
       case (#installAndInitialize(installOptions)) {
 
         // Update the PDS canister ID after successful initialization
-        updatePdsCanisterId(proposalData.id);
+        updatePdsCanisterId(proposalData.canisterId);
 
-        let requestId = switch (await* install(proposalData.id, orchestratorFactory, installOptions)) {
+        let _requestId = switch (await* install(daoPrincipal, proposalData.canisterId, orchestratorFactory, installOptions)) {
           case (#ok(requestId)) requestId;
           case (#err(error)) return #err(error);
         };
@@ -63,7 +64,7 @@ module {
         // label l loop {
         //   let events = await orchestratorFactory().icrc120_get_events({
         //     filter = ?{
-        //       canister = ?proposalData.id;
+        //       canister = ?proposalData.canisterId;
         //       event_types = ?[#upgrade_finished];
         //       start_time = null;
         //       end_time = null;
@@ -91,14 +92,15 @@ module {
         // };
 
         // Initialize an existing PDS canister
-        await* initialize(proposalData.id, installOptions.initializeOptions);
+        await* initialize(proposalData.canisterId, installOptions.initializeOptions);
       };
     };
   };
 
   func install(
+    daoPrincipal : Principal,
     pdsCanisterId : Principal,
-    orchestratorFactory : () -> ICRC120Service.Service,
+    orchestratorFactory : () -> ICRC120.ICRC120,
     installOptions : InstallAndInitializeOptions,
   ) : async* Result.Result<Nat, Text> {
     try {
@@ -114,7 +116,7 @@ module {
         parameters = null;
       }];
 
-      let results = await orchestratorFactory().icrc120_upgrade_to(upgradeOptions);
+      let results = await orchestratorFactory().icrc120_upgrade_to(daoPrincipal, upgradeOptions);
       switch (results[0]) {
         case (#Ok(requestId)) #ok(requestId);
         case (#Err(#Unauthorized)) #err("Not authorized for this operation");
@@ -156,17 +158,17 @@ module {
   };
 
   public func validate(
-    proposal : ProposalData
+    proposalData : ProposalData
   ) : Result.Result<(), [Text]> {
     var errors = List.empty<Text>();
 
     // Validate the canister ID (basic check that it's not null)
-    if (proposal.id == Principal.anonymous()) {
+    if (proposalData.canisterId == Principal.anonymous()) {
       List.add(errors, "Invalid canister ID - cannot be anonymous principal");
     };
 
     // Validate based on the kind of operation
-    switch (proposal.kind) {
+    switch (proposalData.kind) {
       case (#set) {
         // No additional validation needed for simple set operation
       };

@@ -6,7 +6,7 @@ import DagCbor "mo:dag-cbor@2";
 import IC "mo:ic@3/Call";
 import Array "mo:core@1/Array";
 import BaseX "mo:base-x-encoder@2";
-import Sha256 "mo:sha2/Sha256";
+import Sha256 "mo:sha2@0/Sha256";
 import Error "mo:core@1/Error";
 import TextX "mo:xtended-text@2/TextX";
 import Text "mo:core@1/Text";

@@ -9,59 +9,27 @@ import PostToBlueskyProposal "./Proposals/PostToBlueskyProposal";
 import SetPdsCanisterProposal "./Proposals/SetPdsCanisterProposal";
 import BTree "mo:stableheapbtreemap@1/BTree";
 import PureMap "mo:core@1/pure/Map";
-import ICRC120 "mo:icrc120-mo@0";
-import ClassPlus "mo:class-plus@0";
+import Iter "mo:core@1/Iter";
+import TimerTool "mo:timer-tool@0";
+import Orchestrator "Orchestrator";
+import Logger "Logger";
+import WasmStore "WasmStore";
 
-shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface.Actor {
+shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface.Actor = this {
 
-  let thisPrincipal = Principal.fromActor(this);
-  stable var _owner = deployer.caller;
+  transient let daoPrincipal = Principal.fromActor(this);
 
-  // Initialize ClassPlus manager
-  let initManager = ClassPlus.ClassPlusInitializationManager(
-    _owner,
-    thisPrincipal,
-    true,
+  var orchestratorStableData : ?Orchestrator.StableData = null;
+  var loggerStableData : ?Logger.StableData = null;
+  var wasmStoreStableData : ?WasmStore.LocalStableData = null;
+
+  var timerState = TimerTool.init(
+    TimerTool.initialState(),
+    #v0_1_0(#id),
+    null,
+    deployer,
+    daoPrincipal,
   );
-
-  // State management
-  stable var orchestrator_state = ICRC120.initialState();
-
-  // Environment function
-  private func getEnvironment() : ICRC120.Environment {
-    {
-      log = {
-        log_debug = func(msg : Text) { /* your logging */ };
-        log_info = func(msg : Text) { /* your logging */ };
-        log_error = func(msg : Text) { /* your logging */ };
-      };
-      wasm = {
-        get_wasm = func(hash : Blob) : async* Result.Result<Blob, Text> {
-          // Implement your wasm retrieval logic
-          #err("Not implemented");
-        };
-      };
-      timer = {
-        // Timer configuration
-        set_timer = func(nanoseconds : Nat, job : () -> async* ()) : Nat {
-          // Implement timer logic
-          0;
-        };
-      };
-    };
-  };
-
-  // Initialize ICRC120 orchestrator
-  let orchestratorFactory = ICRC120.Init<system>({
-    manager = initManager;
-    initialState = orchestrator_state;
-    args = null;
-    pullEnvironment = ?getEnvironment;
-    onInitialize = null;
-    onStorageChange = func(state) {
-      orchestrator_state := state;
-    };
-  });
 
   // Stable storage for upgrades
   var stableProposalData : ProposalEngine.StableData<DaoInterface.ProposalKind> = {
@@ -76,11 +44,41 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
     deployer,
     { votingPower = 1 },
   );
-  var pdsCanisterId : ?Principal = null; // Will be set by owner
+  var pdsCanisterId : ?Principal = null; // Will be set by DAO
 
+  transient let timerTool = TimerTool.TimerTool(
+    ?timerState,
+    deployer,
+    daoPrincipal,
+    null,
+    null,
+    func(newState : TimerTool.State) {
+      timerState := newState;
+    },
+  );
+
+  transient let wasmStore = WasmStore.LocalWasmStore<system>(wasmStoreStableData);
+
+  transient let logger = Logger.Logger<system>(
+    deployer,
+    daoPrincipal,
+    timerTool,
+    loggerStableData,
+  );
+
+  transient let orchestrator = Orchestrator.Orchestrator<system>(
+    deployer,
+    daoPrincipal,
+    timerTool,
+    logger,
+    wasmStore,
+    orchestratorStableData,
+  );
   // System functions for upgrades
   system func preupgrade() {
-    stableProposalData := proposalEngine.toStableData();
+    orchestratorStableData := ?orchestrator.toStableData();
+    loggerStableData := ?logger.toStableData();
+    wasmStoreStableData := ?wasmStore.toStableData();
   };
 
   // Helper function to update PDS canister ID
@@ -100,7 +98,7 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
         };
       };
       case (#setPdsCanister(setPdsProposal)) {
-        await* SetPdsCanisterProposal.onAdopt(setPdsProposal, orchestratorFactory, updatePdsCanisterId);
+        await* SetPdsCanisterProposal.onAdopt(daoPrincipal, setPdsProposal, orchestrator.factory, updatePdsCanisterId);
       };
     };
   };
@@ -135,28 +133,33 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
   };
 
   public shared ({ caller }) func addMember(id : Principal) : async Result.Result<(), Text> {
-    let isCallerMember = PureMap.containsKey(members, caller);
+    let isCallerMember = PureMap.containsKey(membersMap, Principal.compare, caller);
     if (not isCallerMember) {
       return #err("Only existing members can add new members");
     };
     let (newMembersMap, alreadyExists) = PureMap.insert(
-      members,
+      membersMap,
+      Principal.compare,
       id,
       { votingPower = 1 },
     );
     if (alreadyExists) {
       return #err("Member with this Principal already exists: " # Principal.toText(id));
     };
-    members := newMembersMap;
+    membersMap := newMembersMap;
     #ok;
   };
 
   public query func getMember(id : Principal) : async ?DaoInterface.Member {
-    PureMap.get(membersMap, id);
+    let ?memberData = PureMap.get<Principal, DaoInterface.MemberData>(membersMap, Principal.compare, id) else return null;
+    ?{
+      memberData with
+      id = id;
+    };
   };
 
   public func removeMember(id : Principal) : async Result.Result<(), Text> {
-    let (newMembersMap, existed) = PureMap.delete(membersMap, id);
+    let (newMembersMap, existed) = PureMap.delete(membersMap, Principal.compare, id);
     if (not existed) {
       return #err("Member with this Principal does not exist: " # Principal.toText(id));
     };
@@ -165,11 +168,25 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
   };
 
   public query func getMembers() : async [DaoInterface.Member] {
-    members;
+    getMembersListInternal();
+  };
+
+  private func getMembersListInternal() : [DaoInterface.Member] {
+    PureMap.entries(membersMap)
+    |> Iter.map(
+      _,
+      func((id, data) : (Principal, DaoInterface.MemberData)) : DaoInterface.Member {
+        {
+          data with
+          id = id;
+        };
+      },
+    )
+    |> Iter.toArray(_);
   };
 
   public shared ({ caller }) func createProposal(proposal : DaoInterface.ProposalKind) : async Result.Result<Nat, Text> {
-
+    let members = getMembersListInternal();
     switch (await* proposalEngine.createProposal(caller, proposal, members, #snapshot)) {
       case (#ok(proposalId)) #ok(proposalId);
       case (#err(#notEligible)) #err("Not eligible to create proposals");
@@ -227,7 +244,7 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
           case (#initialize(_)) "Initialize PDS Canister";
           case (#installAndInitialize(_)) "Install and Initialize PDS Canister";
         };
-        (kindText, "PDS Canister ID: " # Principal.toText(setPdsProposal.id));
+        (kindText, "PDS Canister ID: " # Principal.toText(setPdsProposal.canisterId));
       };
     };
 
