@@ -153,6 +153,7 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
     };
   };
 
+  // TODO remove and make it a DAO proposal
   public shared ({ caller }) func addMember(id : Principal) : async Result.Result<(), Text> {
     let isCallerMember = PureMap.containsKey(membersMap, Principal.compare, caller);
     if (not isCallerMember) {
@@ -166,6 +167,23 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
     );
     if (not isNew) {
       return #err("Member with this Principal already exists: " # Principal.toText(id));
+    };
+    membersMap := newMembersMap;
+    #ok;
+  };
+
+  // TODO remove and make it a DAO proposal
+  public shared ({ caller }) func removeMember(id : Principal) : async Result.Result<(), Text> {
+    let isCallerMember = PureMap.containsKey(membersMap, Principal.compare, caller);
+    if (not isCallerMember) {
+      return #err("Only existing members can remove members");
+    };
+    if (PureMap.size(membersMap) <= 1) {
+      return #err("Cannot remove the last member of the DAO");
+    };
+    let (newMembersMap, existed) = PureMap.delete(membersMap, Principal.compare, id);
+    if (not existed) {
+      return #err("Member with this Principal does not exist: " # Principal.toText(id));
     };
     membersMap := newMembersMap;
     #ok;
