@@ -14,6 +14,7 @@ import TimerTool "mo:timer-tool@0";
 import Orchestrator "Orchestrator";
 import Logger "Logger";
 import WasmStore "WasmStore";
+import Nat "mo:core@1/Nat";
 
 shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface.Actor = this {
 
@@ -130,6 +131,25 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
 
   public query func getPdsCanisterId() : async ?Principal {
     pdsCanisterId;
+  };
+
+  public func addWasmChunk(request : DaoInterface.AddWasmChunkRequest) : async Result.Result<(), Text> {
+    // TODO auth
+    wasmStore.addChunk(request.wasmHash, request.index, request.chunk);
+    #ok;
+  };
+
+  public func finalizeWasmChunks(wasmHash : Blob) : async Result.Result<(), Text> {
+    // TODO auth
+    switch (wasmStore.finalizeChunks(wasmHash)) {
+      case (#ok) #ok;
+      case (#err(#wasmNotFound)) #err("WASM not found");
+      case (#err(#chunksMissing(missingIndices))) {
+        let indicesText = missingIndices.vals() |> Iter.map<Nat, Text>(_, func(index) = Nat.toText(index));
+        #err("Missing chunks at indices: " # Text.join(", ", indicesText));
+      };
+      case (#err(#hashMismatch)) #err("WASM hash mismatch");
+    };
   };
 
   public shared ({ caller }) func addMember(id : Principal) : async Result.Result<(), Text> {

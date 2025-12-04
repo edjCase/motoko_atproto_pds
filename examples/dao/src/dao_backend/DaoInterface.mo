@@ -32,6 +32,12 @@ module {
     timeEnd : ?Int;
   };
 
+  public type AddWasmChunkRequest = {
+    wasmHash : Blob;
+    index : Nat;
+    chunk : Blob;
+  };
+
   public type Actor = actor {
 
   };

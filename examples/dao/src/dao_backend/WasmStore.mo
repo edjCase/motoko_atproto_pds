@@ -18,6 +18,7 @@ import Runtime "mo:core@1/Runtime";
 import Sha256 "mo:sha2@0/Sha256";
 import List "mo:core@1/List";
 import Blob "mo:core@1/Blob";
+import ICRC118Service "mo:icrc118-mo@0/service";
 
 module {
 
@@ -33,7 +34,7 @@ module {
   };
 
   public type FinalizeChunksError = {
-    #chunksNotFound;
+    #wasmNotFound;
     #chunksMissing : [Nat];
     #hashMismatch;
   };
@@ -49,8 +50,22 @@ module {
     getWasm : (wasmHash : WasmHash) -> async* ?WasmData;
   };
 
-  public class RemoteWasmStore<system>() {
+  public class RemoteWasmStore<system>(canisterId : Principal) : WasmStore {
+    let icrc118Canister = actor (Principal.toText(canisterId)) : ICRC118Service.Service;
     public func getChunk(wasmHash : WasmHash, index : Nat, expectedHashOrNull : ?Blob) : async* Result.Result<Blob, GetChunkError> {
+
+      // let response = try {
+      //   await* icrc118Canister.icrc118_get_wasm_chunk(
+      //     {
+      //       canister_type_namespace = "";
+      //       version_number = version;
+      //       hash = wasmHash;
+      //       chunk_id = index;
+      //     } : GetWasmChunkRequest
+      //   );
+      // } catch e {
+      //   return #err(#issue);
+      // };
       #err(#wasmNotFound);
     };
 
@@ -86,7 +101,7 @@ module {
     public func finalizeChunks(wasmHash : WasmHash) : Result.Result<(), FinalizeChunksError> {
       let chunkOrNullList = switch (PureMap.get(chunkMap, Blob.compare, wasmHash)) {
         case (?chunkList) chunkList;
-        case (null) return #err(#chunksNotFound);
+        case (null) return #err(#wasmNotFound);
       };
       let missingIndices = List.empty<Nat>();
       for ((i, chunkOrNull) in List.enumerate(chunkOrNullList)) {
