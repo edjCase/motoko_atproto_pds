@@ -158,13 +158,13 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
     if (not isCallerMember) {
       return #err("Only existing members can add new members");
     };
-    let (newMembersMap, alreadyExists) = PureMap.insert(
+    let (newMembersMap, isNew) = PureMap.insert(
       membersMap,
       Principal.compare,
       id,
       { votingPower = 1 },
     );
-    if (alreadyExists) {
+    if (not isNew) {
       return #err("Member with this Principal already exists: " # Principal.toText(id));
     };
     membersMap := newMembersMap;
