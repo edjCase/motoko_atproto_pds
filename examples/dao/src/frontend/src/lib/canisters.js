@@ -1,7 +1,7 @@
-import { createActor } from '../bindings/dao_backend';
+import { createActor } from '../bindings/backend';
 import { HttpAgent } from "@icp-sdk/core/agent";
 
-export const canisterId = process.env.CANISTER_ID_DAO_BACKEND;
+export const canisterId = process.env.CANISTER_ID_BACKEND;
 
 const isProd = process.env.DFX_NETWORK === "ic";
 const url = isProd ? "https://icp-api.io" : "http://localhost:4943";

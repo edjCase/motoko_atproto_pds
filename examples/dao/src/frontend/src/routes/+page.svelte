@@ -21,6 +21,9 @@
     let hostname = "";
     let serviceSubdomain = "";
     let plcIdentifier = "";
+    let wasmHash = "";
+    let initArgs = "";
+    let initArgsFormat = "candidText"; // "candidText" or "raw"
 
     // Pagination
     let currentPage = 0;
@@ -160,9 +163,73 @@
                             plcIdentifier,
                         },
                     };
+                } else if (pdsOperation === "installAndInitialize") {
+                    if (
+                        !hostname.trim() ||
+                        !plcIdentifier.trim() ||
+                        !wasmHash.trim() ||
+                        !initArgs.trim()
+                    ) {
+                        error =
+                            "Hostname, PLC Identifier, WASM Hash, and Init Args are required for install and initialize operation";
+                        return;
+                    }
+
+                    // Convert hex string to Uint8Array for wasmHash
+                    let wasmHashBytes;
+                    try {
+                        wasmHashBytes = new Uint8Array(
+                            wasmHash
+                                .match(/.{1,2}/g)
+                                .map((byte) => parseInt(byte, 16))
+                        );
+                    } catch (e) {
+                        error =
+                            "Invalid WASM Hash format. Please provide a hex string.";
+                        return;
+                    }
+
+                    // Create initArgs variant based on format
+                    let initArgsValue;
+                    if (initArgsFormat === "candidText") {
+                        // Send as candidText variant
+                        initArgsValue = {
+                            candidText: initArgs,
+                        };
+                    } else {
+                        // Send as raw variant (convert hex string to bytes)
+                        let initArgsBytes;
+                        try {
+                            initArgsBytes = new Uint8Array(
+                                initArgs
+                                    .match(/.{1,2}/g)
+                                    .map((byte) => parseInt(byte, 16))
+                            );
+                        } catch (e) {
+                            error =
+                                "Invalid hex format for Init Args.";
+                            return;
+                        }
+                        initArgsValue = {
+                            raw: initArgsBytes,
+                        };
+                    }
+
+                    kind = {
+                        installAndInitialize: {
+                            wasmHash: wasmHashBytes,
+                            initArgs: initArgsValue,
+                            initializeOptions: {
+                                hostname,
+                                serviceSubdomain: serviceSubdomain
+                                    ? [serviceSubdomain]
+                                    : [],
+                                plcIdentifier,
+                            },
+                        },
+                    };
                 } else {
-                    error =
-                        "Install and initialize operation not yet supported in UI";
+                    error = "Unknown operation type";
                     return;
                 }
 
@@ -185,6 +252,9 @@
                 hostname = "";
                 serviceSubdomain = "";
                 plcIdentifier = "";
+                wasmHash = "";
+                initArgs = "";
+                initArgsFormat = "candidText";
                 // Reload proposals
                 await loadProposals();
                 // Switch to proposals tab
@@ -581,10 +651,81 @@
                                 <option value="initialize"
                                     >Initialize (set and initialize canister)</option
                                 >
+                                <option value="installAndInitialize"
+                                    >Install and Initialize (install wasm and
+                                    initialize canister)</option
+                                >
                             </select>
                         </div>
 
-                        {#if pdsOperation === "initialize"}
+                        {#if pdsOperation === "initialize" || pdsOperation === "installAndInitialize"}
+                            {#if pdsOperation === "installAndInitialize"}
+                                <div class="form-group">
+                                    <label for="wasmHash"
+                                        >WASM Hash (hex):</label
+                                    >
+                                    <input
+                                        type="text"
+                                        id="wasmHash"
+                                        bind:value={wasmHash}
+                                        placeholder="e.g., 1a2b3c4d5e6f..."
+                                        disabled={!isAuthenticated || !isMember}
+                                    />
+                                    <small style="color: #00aa00;"
+                                        >Enter the WASM module hash as a hex
+                                        string</small
+                                    >
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="initArgsFormat"
+                                        >Init Args Format:</label
+                                    >
+                                    <select
+                                        id="initArgsFormat"
+                                        bind:value={initArgsFormat}
+                                        disabled={!isAuthenticated || !isMember}
+                                    >
+                                        <option value="candidText"
+                                            >Candid Text</option
+                                        >
+                                        <option value="raw"
+                                            >Raw (Hex-encoded)</option
+                                        >
+                                    </select>
+                                    <small style="color: #00aa00;">
+                                        {#if initArgsFormat === "candidText"}
+                                            Enter as Candid text - will be sent as-is to backend
+                                        {:else}
+                                            Enter as hex bytes - will be converted to binary
+                                        {/if}
+                                    </small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="initArgs">
+                                        {#if initArgsFormat === "candidText"}
+                                            Init Args (Candid Text):
+                                        {:else}
+                                            Init Args (Hex):
+                                        {/if}
+                                    </label>
+                                    <textarea
+                                        id="initArgs"
+                                        bind:value={initArgs}
+                                        placeholder={initArgsFormat === "candidText" ? "e.g., (record &#123; name = &quot;MyCanister&quot; &#125;)" : "e.g., 4449444c..."}
+                                        disabled={!isAuthenticated || !isMember}
+                                    ></textarea>
+                                    <small style="color: #00aa00;">
+                                        {#if initArgsFormat === "candidText"}
+                                            Enter initialization arguments as Candid text
+                                        {:else}
+                                            Enter initialization arguments as hex string
+                                        {/if}
+                                    </small>
+                                </div>
+                            {/if}
+
                             <div class="form-group">
                                 <label for="hostname">Hostname:</label>
                                 <input

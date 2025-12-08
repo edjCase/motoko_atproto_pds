@@ -8,7 +8,7 @@ fi
 
 network=$1
 
-canister_id=$(dfx canister id dao_backend  --network "${network}")
+canister_id=$(dfx canister id backend  --network "${network}")
 
 if [ -z "$2" ]; then
     echo "Error: member principal required"

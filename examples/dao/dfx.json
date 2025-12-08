@@ -1,21 +1,21 @@
 {
   "canisters": {
-    "dao_backend": {
+    "backend": {
       "declarations": {
         "node_compatibility": true
       },
-      "main": "src/dao_backend/main.mo",
+      "main": "src/backend/main.mo",
       "type": "motoko"
     },
-    "dao_frontend": {
+    "frontend": {
       "dependencies": [
-        "dao_backend"
+        "backend"
       ],
       "source": [
-        "src/dao_frontend/dist"
+        "src/frontend/dist"
       ],
       "type": "assets",
-      "workspace": "dao_frontend"
+      "workspace": "frontend"
     },
     "internet_identity": {
       "candid": "https://github.com/dfinity/internet-identity/releases/latest/download/internet_identity.did",

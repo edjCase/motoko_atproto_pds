@@ -8,7 +8,7 @@
 
 import { Actor, HttpAgent, type HttpAgentOptions, type ActorConfig, type Agent, type ActorSubclass } from "@icp-sdk/core/agent";
 import type { Principal } from "@icp-sdk/core/principal";
-import { idlFactory, type _SERVICE } from "./declarations/dao_backend.did";
+import { idlFactory, type _SERVICE } from "./declarations/backend.did";
 export interface Some<T> {
     __kind__: "Some";
     value: T;
@@ -161,11 +161,11 @@ export interface Vote {
     votingPower: bigint;
     choice?: boolean;
 }
-export interface dao_backendInterface extends DaoInterface {
+export interface backendInterface extends DaoInterface {
 }
-import type { InitializeOptions as _InitializeOptions, InstallAndInitializeOptions as _InstallAndInitializeOptions, Member as _Member, PagedResult as _PagedResult, ProposalData as _ProposalData, ProposalData__1 as _ProposalData__1, ProposalDetail as _ProposalDetail, ProposalKind as _ProposalKind, ProposalStatus as _ProposalStatus, Result as _Result, Result_1 as _Result_1, Time as _Time, Vote as _Vote } from "./declarations/dao_backend.did.d.ts";
-export class Dao_backend implements dao_backendInterface {
-    constructor(private actor: ActorSubclass<_SERVICE>){}
+import type { InitializeOptions as _InitializeOptions, InstallAndInitializeOptions as _InstallAndInitializeOptions, Member as _Member, PagedResult as _PagedResult, ProposalData as _ProposalData, ProposalData__1 as _ProposalData__1, ProposalDetail as _ProposalDetail, ProposalKind as _ProposalKind, ProposalStatus as _ProposalStatus, Result as _Result, Result_1 as _Result_1, Time as _Time, Vote as _Vote } from "./declarations/backend.did";
+export class backend implements backendInterface {
+    constructor(private actor: ActorSubclass<_SERVICE>) { }
     async addMember(arg0: Principal): Promise<Result> {
         const result = await this.actor.addMember(arg0);
         return from_candid_Result_n1(result);
@@ -449,7 +449,7 @@ function from_candid_variant_n20(value: {
     } : value;
 }
 function from_candid_vec_n28(value: Array<_ProposalDetail>): Array<ProposalDetail> {
-    return value.map((x)=>from_candid_ProposalDetail_n17(x));
+    return value.map((x) => from_candid_ProposalDetail_n17(x));
 }
 function to_candid_InitializeOptions_n8(value: InitializeOptions): _InitializeOptions {
     return to_candid_record_n9(value);
@@ -566,7 +566,7 @@ export interface CreateActorOptions {
     agentOptions?: HttpAgentOptions;
     actorOptions?: ActorConfig;
 }
-export function createActor(canisterId: string, options: CreateActorOptions = {}): Dao_backend {
+export function createActor(canisterId: string, options: CreateActorOptions = {}): backend {
     const agent = options.agent || HttpAgent.createSync({
         ...options.agentOptions
     });
@@ -578,5 +578,5 @@ export function createActor(canisterId: string, options: CreateActorOptions = {}
         canisterId: canisterId,
         ...options.actorOptions
     });
-    return new Dao_backend(actor);
+    return new backend(actor);
 }

@@ -22,7 +22,7 @@ if [ ! -f "$wasm_file" ]; then
     exit 1
 fi
 
-canister_id=$(dfx canister id dao_backend --network "${network}")
+canister_id=$(dfx canister id backend --network "${network}")
 
 echo "===== WASM Upload ====="
 echo "File: $wasm_file"

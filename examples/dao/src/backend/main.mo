@@ -197,15 +197,6 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
     };
   };
 
-  public func removeMember(id : Principal) : async Result.Result<(), Text> {
-    let (newMembersMap, existed) = PureMap.delete(membersMap, Principal.compare, id);
-    if (not existed) {
-      return #err("Member with this Principal does not exist: " # Principal.toText(id));
-    };
-    membersMap := newMembersMap;
-    #ok;
-  };
-
   public query func getMembers() : async [DaoInterface.Member] {
     getMembersListInternal();
   };

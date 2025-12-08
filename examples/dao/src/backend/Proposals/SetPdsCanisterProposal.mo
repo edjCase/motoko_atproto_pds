@@ -27,7 +27,10 @@ module {
 
   public type InstallAndInitializeOptions = {
     wasmHash : Blob;
-    initArgs : Blob;
+    initArgs : {
+      #raw : Blob;
+      #candidText : Text;
+    };
     initializeOptions : InitializeOptions;
   };
 
