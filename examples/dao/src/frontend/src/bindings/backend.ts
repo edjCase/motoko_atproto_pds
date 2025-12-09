@@ -70,7 +70,13 @@ export interface ProposalData {
 }
 export interface InstallAndInitializeOptions {
     initializeOptions: InitializeOptions;
-    initArgs: Uint8Array;
+    initArgs: {
+        __kind__: "raw";
+        raw: Uint8Array;
+    } | {
+        __kind__: "candidText";
+        candidText: string;
+    };
     wasmHash: Uint8Array;
 }
 export interface InitializeOptions {
@@ -183,7 +189,7 @@ export class Backend implements backendInterface {
     }
     async createProposal(arg0: ProposalKind): Promise<Result_1> {
         const result = await this.actor.createProposal(to_candid_ProposalKind_n3(arg0));
-        return from_candid_Result_1_n12(result);
+        return from_candid_Result_1_n13(result);
     }
     async finalizeWasmChunks(arg0: Uint8Array): Promise<Result> {
         const result = await this.actor.finalizeWasmChunks(arg0);
@@ -191,7 +197,7 @@ export class Backend implements backendInterface {
     }
     async getMember(arg0: Principal): Promise<Member | null> {
         const result = await this.actor.getMember(arg0);
-        return from_candid_opt_n14(result);
+        return from_candid_opt_n15(result);
     }
     async getMembers(): Promise<Array<Member>> {
         const result = await this.actor.getMembers();
@@ -199,19 +205,19 @@ export class Backend implements backendInterface {
     }
     async getPdsCanisterId(): Promise<Principal | null> {
         const result = await this.actor.getPdsCanisterId();
-        return from_candid_opt_n15(result);
+        return from_candid_opt_n16(result);
     }
     async getProposal(arg0: bigint): Promise<ProposalDetail | null> {
         const result = await this.actor.getProposal(arg0);
-        return from_candid_opt_n16(result);
+        return from_candid_opt_n17(result);
     }
     async getProposals(arg0: bigint, arg1: bigint): Promise<PagedResult> {
         const result = await this.actor.getProposals(arg0, arg1);
-        return from_candid_PagedResult_n26(result);
+        return from_candid_PagedResult_n27(result);
     }
     async getVote(arg0: bigint, arg1: Principal): Promise<Vote | null> {
         const result = await this.actor.getVote(arg0, arg1);
-        return from_candid_opt_n29(result);
+        return from_candid_opt_n30(result);
     }
     async removeMember(arg0: Principal): Promise<Result> {
         const result = await this.actor.removeMember(arg0);
@@ -222,43 +228,43 @@ export class Backend implements backendInterface {
         return from_candid_Result_n1(result);
     }
 }
-function from_candid_PagedResult_n26(value: _PagedResult): PagedResult {
-    return from_candid_record_n27(value);
+function from_candid_PagedResult_n27(value: _PagedResult): PagedResult {
+    return from_candid_record_n28(value);
 }
-function from_candid_ProposalDetail_n17(value: _ProposalDetail): ProposalDetail {
-    return from_candid_record_n18(value);
+function from_candid_ProposalDetail_n18(value: _ProposalDetail): ProposalDetail {
+    return from_candid_record_n19(value);
 }
-function from_candid_ProposalStatus_n19(value: _ProposalStatus): ProposalStatus {
-    return from_candid_variant_n20(value);
+function from_candid_ProposalStatus_n20(value: _ProposalStatus): ProposalStatus {
+    return from_candid_variant_n21(value);
 }
-function from_candid_Result_1_n12(value: _Result_1): Result_1 {
-    return from_candid_variant_n13(value);
+function from_candid_Result_1_n13(value: _Result_1): Result_1 {
+    return from_candid_variant_n14(value);
 }
 function from_candid_Result_n1(value: _Result): Result {
     return from_candid_variant_n2(value);
 }
-function from_candid_Vote_n30(value: _Vote): Vote {
-    return from_candid_record_n31(value);
+function from_candid_Vote_n31(value: _Vote): Vote {
+    return from_candid_record_n32(value);
 }
-function from_candid_opt_n14(value: [] | [_Member]): Member | null {
+function from_candid_opt_n15(value: [] | [_Member]): Member | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n15(value: [] | [Principal]): Principal | null {
+function from_candid_opt_n16(value: [] | [Principal]): Principal | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n16(value: [] | [_ProposalDetail]): ProposalDetail | null {
-    return value.length === 0 ? null : from_candid_ProposalDetail_n17(value[0]);
+function from_candid_opt_n17(value: [] | [_ProposalDetail]): ProposalDetail | null {
+    return value.length === 0 ? null : from_candid_ProposalDetail_n18(value[0]);
 }
-function from_candid_opt_n22(value: [] | [boolean]): boolean | null {
+function from_candid_opt_n23(value: [] | [boolean]): boolean | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n25(value: [] | [bigint]): bigint | null {
+function from_candid_opt_n26(value: [] | [bigint]): bigint | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n29(value: [] | [_Vote]): Vote | null {
-    return value.length === 0 ? null : from_candid_Vote_n30(value[0]);
+function from_candid_opt_n30(value: [] | [_Vote]): Vote | null {
+    return value.length === 0 ? null : from_candid_Vote_n31(value[0]);
 }
-function from_candid_record_n18(value: {
+function from_candid_record_n19(value: {
     id: bigint;
     status: _ProposalStatus;
     title: string;
@@ -281,17 +287,17 @@ function from_candid_record_n18(value: {
 } {
     return {
         id: value.id,
-        status: from_candid_ProposalStatus_n19(value.status),
+        status: from_candid_ProposalStatus_n20(value.status),
         title: value.title,
         votesAgainst: value.votesAgainst,
         timeStart: value.timeStart,
         votesFor: value.votesFor,
         totalVotingPower: value.totalVotingPower,
         description: value.description,
-        timeEnd: record_opt_to_undefined(from_candid_opt_n25(value.timeEnd))
+        timeEnd: record_opt_to_undefined(from_candid_opt_n26(value.timeEnd))
     };
 }
-function from_candid_record_n21(value: {
+function from_candid_record_n22(value: {
     executingTime: _Time;
     error: string;
     failedTime: _Time;
@@ -306,10 +312,10 @@ function from_candid_record_n21(value: {
         executingTime: value.executingTime,
         error: value.error,
         failedTime: value.failedTime,
-        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice))
+        choice: record_opt_to_undefined(from_candid_opt_n23(value.choice))
     };
 }
-function from_candid_record_n23(value: {
+function from_candid_record_n24(value: {
     executingTime: _Time;
     choice: [] | [boolean];
 }): {
@@ -318,10 +324,10 @@ function from_candid_record_n23(value: {
 } {
     return {
         executingTime: value.executingTime,
-        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice))
+        choice: record_opt_to_undefined(from_candid_opt_n23(value.choice))
     };
 }
-function from_candid_record_n24(value: {
+function from_candid_record_n25(value: {
     executingTime: _Time;
     choice: [] | [boolean];
     executedTime: _Time;
@@ -332,11 +338,11 @@ function from_candid_record_n24(value: {
 } {
     return {
         executingTime: value.executingTime,
-        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice)),
+        choice: record_opt_to_undefined(from_candid_opt_n23(value.choice)),
         executedTime: value.executedTime
     };
 }
-function from_candid_record_n27(value: {
+function from_candid_record_n28(value: {
     data: Array<_ProposalDetail>;
     count: bigint;
     totalCount: bigint;
@@ -348,13 +354,13 @@ function from_candid_record_n27(value: {
     offset: bigint;
 } {
     return {
-        data: from_candid_vec_n28(value.data),
+        data: from_candid_vec_n29(value.data),
         count: value.count,
         totalCount: value.totalCount,
         offset: value.offset
     };
 }
-function from_candid_record_n31(value: {
+function from_candid_record_n32(value: {
     votingPower: bigint;
     choice: [] | [boolean];
 }): {
@@ -363,10 +369,10 @@ function from_candid_record_n31(value: {
 } {
     return {
         votingPower: value.votingPower,
-        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice))
+        choice: record_opt_to_undefined(from_candid_opt_n23(value.choice))
     };
 }
-function from_candid_variant_n13(value: {
+function from_candid_variant_n14(value: {
     ok: bigint;
 } | {
     err: string;
@@ -404,7 +410,7 @@ function from_candid_variant_n2(value: {
         err: value.err
     } : value;
 }
-function from_candid_variant_n20(value: {
+function from_candid_variant_n21(value: {
     failedToExecute: {
         executingTime: _Time;
         error: string;
@@ -451,20 +457,20 @@ function from_candid_variant_n20(value: {
 } {
     return "failedToExecute" in value ? {
         __kind__: "failedToExecute",
-        failedToExecute: from_candid_record_n21(value.failedToExecute)
+        failedToExecute: from_candid_record_n22(value.failedToExecute)
     } : "open" in value ? {
         __kind__: "open",
         open: value.open
     } : "executing" in value ? {
         __kind__: "executing",
-        executing: from_candid_record_n23(value.executing)
+        executing: from_candid_record_n24(value.executing)
     } : "executed" in value ? {
         __kind__: "executed",
-        executed: from_candid_record_n24(value.executed)
+        executed: from_candid_record_n25(value.executed)
     } : value;
 }
-function from_candid_vec_n28(value: Array<_ProposalDetail>): Array<ProposalDetail> {
-    return value.map((x)=>from_candid_ProposalDetail_n17(x));
+function from_candid_vec_n29(value: Array<_ProposalDetail>): Array<ProposalDetail> {
+    return value.map((x)=>from_candid_ProposalDetail_n18(x));
 }
 function to_candid_InitializeOptions_n8(value: InitializeOptions): _InitializeOptions {
     return to_candid_record_n9(value);
@@ -480,16 +486,26 @@ function to_candid_ProposalKind_n3(value: ProposalKind): _ProposalKind {
 }
 function to_candid_record_n11(value: {
     initializeOptions: InitializeOptions;
-    initArgs: Uint8Array;
+    initArgs: {
+        __kind__: "raw";
+        raw: Uint8Array;
+    } | {
+        __kind__: "candidText";
+        candidText: string;
+    };
     wasmHash: Uint8Array;
 }): {
     initializeOptions: _InitializeOptions;
-    initArgs: Uint8Array;
+    initArgs: {
+        raw: Uint8Array;
+    } | {
+        candidText: string;
+    };
     wasmHash: Uint8Array;
 } {
     return {
         initializeOptions: to_candid_InitializeOptions_n8(value.initializeOptions),
-        initArgs: value.initArgs,
+        initArgs: to_candid_variant_n12(value.initArgs),
         wasmHash: value.wasmHash
     };
 }
@@ -534,6 +550,23 @@ function to_candid_record_n9(value: {
         serviceSubdomain: value.serviceSubdomain ? candid_some(value.serviceSubdomain) : candid_none(),
         plcIdentifier: value.plcIdentifier
     };
+}
+function to_candid_variant_n12(value: {
+    __kind__: "raw";
+    raw: Uint8Array;
+} | {
+    __kind__: "candidText";
+    candidText: string;
+}): {
+    raw: Uint8Array;
+} | {
+    candidText: string;
+} {
+    return value.__kind__ === "raw" ? {
+        raw: value.raw
+    } : value.__kind__ === "candidText" ? {
+        candidText: value.candidText
+    } : value;
 }
 function to_candid_variant_n4(value: {
     __kind__: "setPdsCanister";

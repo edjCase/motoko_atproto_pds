@@ -206,8 +206,7 @@
                                     .map((byte) => parseInt(byte, 16))
                             );
                         } catch (e) {
-                            error =
-                                "Invalid hex format for Init Args.";
+                            error = "Invalid hex format for Init Args.";
                             return;
                         }
                         initArgsValue = {
@@ -235,7 +234,7 @@
 
                 proposalContent = {
                     setPdsCanister: {
-                        id: pdsCanisterId,
+                        canisterId: Principal.fromText(pdsCanisterId),
                         kind,
                     },
                 };
@@ -316,6 +315,13 @@
         if ("executed" in status) return "Executed";
         if ("failedToExecute" in status) return "Failed";
         return "Unknown";
+    }
+
+    function getFailureDetails(status) {
+        if ("failedToExecute" in status && status.failedToExecute.error) {
+            return status.failedToExecute.error;
+        }
+        return null;
     }
 
     function canVote(status) {
@@ -461,9 +467,20 @@
                                 </div>
                             </div>
 
-                            <div class="proposal-description">
+                            <div
+                                class="proposal-description"
+                                style="white-space: pre-wrap;"
+                            >
                                 {proposal.description}
                             </div>
+
+                            <!-- Show failure details if proposal failed -->
+                            {#if getFailureDetails(proposal.status)}
+                                <div class="error" style="margin-top: 10px;">
+                                    <strong>Execution Error:</strong>
+                                    {getFailureDetails(proposal.status)}
+                                </div>
+                            {/if}
 
                             <div class="vote-info">
                                 <div class="vote-stat">
@@ -695,9 +712,11 @@
                                     </select>
                                     <small style="color: #00aa00;">
                                         {#if initArgsFormat === "candidText"}
-                                            Enter as Candid text - will be sent as-is to backend
+                                            Enter as Candid text - will be sent
+                                            as-is to backend
                                         {:else}
-                                            Enter as hex bytes - will be converted to binary
+                                            Enter as hex bytes - will be
+                                            converted to binary
                                         {/if}
                                     </small>
                                 </div>
@@ -713,14 +732,19 @@
                                     <textarea
                                         id="initArgs"
                                         bind:value={initArgs}
-                                        placeholder={initArgsFormat === "candidText" ? "e.g., (record &#123; name = &quot;MyCanister&quot; &#125;)" : "e.g., 4449444c..."}
+                                        placeholder={initArgsFormat ===
+                                        "candidText"
+                                            ? 'e.g., (record name = "MyCanister")'
+                                            : "e.g., 4449444c..."}
                                         disabled={!isAuthenticated || !isMember}
                                     ></textarea>
                                     <small style="color: #00aa00;">
                                         {#if initArgsFormat === "candidText"}
-                                            Enter initialization arguments as Candid text
+                                            Enter initialization arguments as
+                                            Candid text
                                         {:else}
-                                            Enter initialization arguments as hex string
+                                            Enter initialization arguments as
+                                            hex string
                                         {/if}
                                     </small>
                                 </div>

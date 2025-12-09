@@ -7,6 +7,8 @@ import PdsInterface "../../../../../src/PdsInterface";
 import { ic } "mo:ic@3";
 import List "mo:core@1/List";
 import ICRC120 "mo:icrc120-mo@0";
+import Candid "mo:candid@2";
+import Blob "mo:core@1/Blob";
 
 module {
 
@@ -107,10 +109,17 @@ module {
     installOptions : InstallAndInitializeOptions,
   ) : async* Result.Result<Nat, Text> {
     try {
+      let args = switch (installOptions.initArgs) {
+        case (#raw(blob)) blob;
+        case (#candidText(text)) switch (Candid.fromText(text)) {
+          case (#ok(value)) Blob.fromArray(Candid.toBytes(value));
+          case (#err(errMsg)) return #err("Failed to encode Candid text to blob: " # errMsg);
+        };
+      };
       let upgradeOptions = [{
         canister_id = pdsCanisterId;
         hash = installOptions.wasmHash;
-        args = installOptions.initArgs;
+        args = args;
         stop = true;
         restart = true;
         snapshot = true; /* Always snapshot for DAO operations */

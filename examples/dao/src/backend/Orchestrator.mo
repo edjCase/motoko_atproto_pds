@@ -45,9 +45,13 @@ module {
         add_record = null;
         advanced = null;
         can_admin_canister = func(context : { caller : Principal; canisterId : Principal }) : async* Bool {
-          context.caller == deployer;
+          true; // TODO
         };
-        can_install_canister = null;
+        can_install_canister = ?(
+          func(context : { caller : Principal; canisterId : Principal }) : async* Bool {
+            true; // TODO
+          }
+        );
         get_wasm_chunk = func(hash : Blob, chunkId : Nat, expectedHash : ?Blob) : async* Result.Result<Blob, Text> {
           switch (await* wasmStore.getChunk(hash, chunkId, expectedHash)) {
             case (#ok(chunk)) #ok(chunk);

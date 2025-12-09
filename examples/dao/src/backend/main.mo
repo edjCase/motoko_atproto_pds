@@ -266,15 +266,38 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
     // Extract title and description based on proposal type
     let (title, description) = switch (proposal.content) {
       case (#postToBluesky(postProposal)) {
-        ("Post To Bluesky", "Post content to Personal Data Server for Bluesky. Content: \n" # postProposal.message);
+        ("Post To Bluesky", "Post content to Personal Data Server for Bluesky.\n\nMessage:\n" # postProposal.message);
       };
       case (#setPdsCanister(setPdsProposal)) {
-        let kindText = switch (setPdsProposal.kind) {
-          case (#set) "Set PDS Canister";
-          case (#initialize(_)) "Initialize PDS Canister";
-          case (#installAndInitialize(_)) "Install and Initialize PDS Canister";
+        let canisterIdText = "Canister ID: " # Principal.toText(setPdsProposal.canisterId);
+        let (kindText, kindDetails) = switch (setPdsProposal.kind) {
+          case (#set) {
+            ("Set PDS Canister", canisterIdText);
+          };
+          case (#initialize(opts)) {
+            let details = canisterIdText # "\n\nInitialization Options:\n" #
+            "  Hostname: " # opts.hostname # "\n" #
+            "  Service Subdomain: " # (switch (opts.serviceSubdomain) { case (?sub) sub; case (null) "(none)" }) # "\n" #
+            "  PLC Identifier: " # opts.plcIdentifier;
+            ("Initialize PDS Canister", details);
+          };
+          case (#installAndInitialize(opts)) {
+            let wasmHashText = debug_show (opts.wasmHash);
+            let initArgsText = switch (opts.initArgs) {
+              case (#candidText(text)) "Candid Text:\n    " # text;
+              case (#raw(blob)) "Raw (hex): " # debug_show (blob);
+            };
+            let details = canisterIdText # "\n\nInstallation:\n" #
+            "  WASM Hash: " # wasmHashText # "\n" #
+            "  Init Args: " # initArgsText # "\n\n" #
+            "Initialization Options:\n" #
+            "  Hostname: " # opts.initializeOptions.hostname # "\n" #
+            "  Service Subdomain: " # (switch (opts.initializeOptions.serviceSubdomain) { case (?sub) sub; case (null) "(none)" }) # "\n" #
+            "  PLC Identifier: " # opts.initializeOptions.plcIdentifier;
+            ("Install and Initialize PDS Canister", details);
+          };
         };
-        (kindText, "PDS Canister ID: " # Principal.toText(setPdsProposal.canisterId));
+        (kindText, kindDetails);
       };
     };
 
