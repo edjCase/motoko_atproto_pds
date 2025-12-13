@@ -58,6 +58,11 @@ export interface PagedResult {
     offset: bigint;
 }
 export type Time = bigint;
+export interface ICRC16Property {
+    value: ICRC16;
+    name: string;
+    immutable: boolean;
+}
 export type ProposalKind = {
     __kind__: "setPdsCanister";
     setPdsCanister: ProposalData__1;
@@ -67,22 +72,6 @@ export type ProposalKind = {
 };
 export interface ProposalData {
     message: string;
-}
-export interface InstallAndInitializeOptions {
-    initializeOptions: InitializeOptions;
-    initArgs: {
-        __kind__: "raw";
-        raw: Uint8Array;
-    } | {
-        __kind__: "candidText";
-        candidText: string;
-    };
-    wasmHash: Uint8Array;
-}
-export interface InitializeOptions {
-    hostname: string;
-    serviceSubdomain?: string;
-    plcIdentifier: string;
 }
 export interface DaoInterface {
     addMember(id: Principal): Promise<Result>;
@@ -95,8 +84,32 @@ export interface DaoInterface {
     getProposal(proposalId: bigint): Promise<ProposalDetail | null>;
     getProposals(count: bigint, offset: bigint): Promise<PagedResult>;
     getVote(proposalId: bigint, voterId: Principal): Promise<Vote | null>;
+    getWasmHashes(): Promise<Array<string>>;
+    icrc120_get_events(input: {
+        prev?: Uint8Array;
+        take?: bigint;
+        filter?: GetEventsFilter;
+    }): Promise<Array<OrchestrationEvent>>;
     removeMember(id: Principal): Promise<Result>;
     vote(proposalId: bigint, vote: boolean): Promise<Result>;
+}
+export interface InstallOptions {
+    initArgs: {
+        __kind__: "raw";
+        raw: Uint8Array;
+    } | {
+        __kind__: "candidText";
+        candidText: string;
+    };
+    wasmHash: Uint8Array;
+    kind: Variant_reinstall_upgrade_install;
+}
+export interface OrchestrationEvent {
+    id: bigint;
+    canister_id: Principal;
+    timestamp: bigint;
+    details: ICRC16;
+    event_type: OrchestrationEventType;
 }
 export type Result_1 = {
     __kind__: "ok";
@@ -105,6 +118,12 @@ export type Result_1 = {
     __kind__: "err";
     err: string;
 };
+export interface GetEventsFilter {
+    event_types?: Array<OrchestrationEventType>;
+    end_time?: bigint;
+    start_time?: bigint;
+    canister?: Principal;
+}
 export type ProposalStatus = {
     __kind__: "failedToExecute";
     failedToExecute: {
@@ -146,11 +165,8 @@ export interface ProposalData__1 {
         __kind__: "set";
         set: null;
     } | {
-        __kind__: "installAndInitialize";
-        installAndInitialize: InstallAndInitializeOptions;
-    } | {
-        __kind__: "initialize";
-        initialize: InitializeOptions;
+        __kind__: "install";
+        install: InstallOptions;
     };
     canisterId: Principal;
 }
@@ -170,13 +186,103 @@ export interface Member {
     id: Principal;
     votingPower: bigint;
 }
+export type ICRC16 = {
+    __kind__: "Int";
+    Int: bigint;
+} | {
+    __kind__: "Map";
+    Map: Array<[string, ICRC16]>;
+} | {
+    __kind__: "Nat";
+    Nat: bigint;
+} | {
+    __kind__: "Set";
+    Set: Array<ICRC16>;
+} | {
+    __kind__: "Nat16";
+    Nat16: number;
+} | {
+    __kind__: "Nat32";
+    Nat32: number;
+} | {
+    __kind__: "Nat64";
+    Nat64: bigint;
+} | {
+    __kind__: "Blob";
+    Blob: Uint8Array;
+} | {
+    __kind__: "Bool";
+    Bool: boolean;
+} | {
+    __kind__: "Int8";
+    Int8: number;
+} | {
+    __kind__: "Nat8";
+    Nat8: number;
+} | {
+    __kind__: "Nats";
+    Nats: Array<bigint>;
+} | {
+    __kind__: "Text";
+    Text: string;
+} | {
+    __kind__: "Bytes";
+    Bytes: Uint8Array;
+} | {
+    __kind__: "Int16";
+    Int16: number;
+} | {
+    __kind__: "Int32";
+    Int32: number;
+} | {
+    __kind__: "Int64";
+    Int64: bigint;
+} | {
+    __kind__: "Option";
+    Option: ICRC16 | null;
+} | {
+    __kind__: "Floats";
+    Floats: Array<number>;
+} | {
+    __kind__: "Float";
+    Float: number;
+} | {
+    __kind__: "Principal";
+    Principal: Principal;
+} | {
+    __kind__: "Array";
+    Array: Array<ICRC16>;
+} | {
+    __kind__: "ValueMap";
+    ValueMap: Array<[ICRC16, ICRC16]>;
+} | {
+    __kind__: "Class";
+    Class: Array<ICRC16Property>;
+};
 export interface Vote {
     votingPower: bigint;
     choice?: boolean;
 }
+export enum OrchestrationEventType {
+    upgrade_initiated = "upgrade_initiated",
+    snapshot_requested = "snapshot_requested",
+    snapshot_revert_requested = "snapshot_revert_requested",
+    snapshot_cleaned = "snapshot_cleaned",
+    upgrade_finished = "upgrade_finished",
+    configuration_changed = "configuration_changed",
+    snapshot_reverted = "snapshot_reverted",
+    canister_started = "canister_started",
+    snapshot_created = "snapshot_created",
+    canister_stopped = "canister_stopped"
+}
+export enum Variant_reinstall_upgrade_install {
+    reinstall = "reinstall",
+    upgrade = "upgrade",
+    install = "install"
+}
 export interface backendInterface extends DaoInterface {
 }
-import type { InitializeOptions as _InitializeOptions, InstallAndInitializeOptions as _InstallAndInitializeOptions, Member as _Member, PagedResult as _PagedResult, ProposalData as _ProposalData, ProposalData__1 as _ProposalData__1, ProposalDetail as _ProposalDetail, ProposalKind as _ProposalKind, ProposalStatus as _ProposalStatus, Result as _Result, Result_1 as _Result_1, Time as _Time, Vote as _Vote } from "./declarations/backend.did.d.ts";
+import type { GetEventsFilter as _GetEventsFilter, ICRC16 as _ICRC16, ICRC16Property as _ICRC16Property, InstallOptions as _InstallOptions, Member as _Member, OrchestrationEvent as _OrchestrationEvent, OrchestrationEventType as _OrchestrationEventType, PagedResult as _PagedResult, ProposalData as _ProposalData, ProposalData__1 as _ProposalData__1, ProposalDetail as _ProposalDetail, ProposalKind as _ProposalKind, ProposalStatus as _ProposalStatus, Result as _Result, Result_1 as _Result_1, Time as _Time, Vote as _Vote } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>){}
     async addMember(arg0: Principal): Promise<Result> {
@@ -189,7 +295,7 @@ export class Backend implements backendInterface {
     }
     async createProposal(arg0: ProposalKind): Promise<Result_1> {
         const result = await this.actor.createProposal(to_candid_ProposalKind_n3(arg0));
-        return from_candid_Result_1_n13(result);
+        return from_candid_Result_1_n12(result);
     }
     async finalizeWasmChunks(arg0: Uint8Array): Promise<Result> {
         const result = await this.actor.finalizeWasmChunks(arg0);
@@ -197,7 +303,7 @@ export class Backend implements backendInterface {
     }
     async getMember(arg0: Principal): Promise<Member | null> {
         const result = await this.actor.getMember(arg0);
-        return from_candid_opt_n15(result);
+        return from_candid_opt_n14(result);
     }
     async getMembers(): Promise<Array<Member>> {
         const result = await this.actor.getMembers();
@@ -205,19 +311,31 @@ export class Backend implements backendInterface {
     }
     async getPdsCanisterId(): Promise<Principal | null> {
         const result = await this.actor.getPdsCanisterId();
-        return from_candid_opt_n16(result);
+        return from_candid_opt_n15(result);
     }
     async getProposal(arg0: bigint): Promise<ProposalDetail | null> {
         const result = await this.actor.getProposal(arg0);
-        return from_candid_opt_n17(result);
+        return from_candid_opt_n16(result);
     }
     async getProposals(arg0: bigint, arg1: bigint): Promise<PagedResult> {
         const result = await this.actor.getProposals(arg0, arg1);
-        return from_candid_PagedResult_n27(result);
+        return from_candid_PagedResult_n26(result);
     }
     async getVote(arg0: bigint, arg1: Principal): Promise<Vote | null> {
         const result = await this.actor.getVote(arg0, arg1);
-        return from_candid_opt_n30(result);
+        return from_candid_opt_n29(result);
+    }
+    async getWasmHashes(): Promise<Array<string>> {
+        const result = await this.actor.getWasmHashes();
+        return result;
+    }
+    async icrc120_get_events(arg0: {
+        prev?: Uint8Array;
+        take?: bigint;
+        filter?: GetEventsFilter;
+    }): Promise<Array<OrchestrationEvent>> {
+        const result = await this.actor.icrc120_get_events(to_candid_record_n32(arg0));
+        return from_candid_vec_n38(result);
     }
     async removeMember(arg0: Principal): Promise<Result> {
         const result = await this.actor.removeMember(arg0);
@@ -228,43 +346,58 @@ export class Backend implements backendInterface {
         return from_candid_Result_n1(result);
     }
 }
-function from_candid_PagedResult_n27(value: _PagedResult): PagedResult {
-    return from_candid_record_n28(value);
+function from_candid_ICRC16Property_n50(value: _ICRC16Property): ICRC16Property {
+    return from_candid_record_n51(value);
 }
-function from_candid_ProposalDetail_n18(value: _ProposalDetail): ProposalDetail {
-    return from_candid_record_n19(value);
+function from_candid_ICRC16_n41(value: _ICRC16): ICRC16 {
+    return from_candid_variant_n42(value);
 }
-function from_candid_ProposalStatus_n20(value: _ProposalStatus): ProposalStatus {
-    return from_candid_variant_n21(value);
+function from_candid_OrchestrationEventType_n52(value: _OrchestrationEventType): OrchestrationEventType {
+    return from_candid_variant_n53(value);
 }
-function from_candid_Result_1_n13(value: _Result_1): Result_1 {
-    return from_candid_variant_n14(value);
+function from_candid_OrchestrationEvent_n39(value: _OrchestrationEvent): OrchestrationEvent {
+    return from_candid_record_n40(value);
+}
+function from_candid_PagedResult_n26(value: _PagedResult): PagedResult {
+    return from_candid_record_n27(value);
+}
+function from_candid_ProposalDetail_n17(value: _ProposalDetail): ProposalDetail {
+    return from_candid_record_n18(value);
+}
+function from_candid_ProposalStatus_n19(value: _ProposalStatus): ProposalStatus {
+    return from_candid_variant_n20(value);
+}
+function from_candid_Result_1_n12(value: _Result_1): Result_1 {
+    return from_candid_variant_n13(value);
 }
 function from_candid_Result_n1(value: _Result): Result {
     return from_candid_variant_n2(value);
 }
-function from_candid_Vote_n31(value: _Vote): Vote {
-    return from_candid_record_n32(value);
+function from_candid_Vote_n30(value: _Vote): Vote {
+    return from_candid_record_n31(value);
 }
-function from_candid_opt_n15(value: [] | [_Member]): Member | null {
+function from_candid_opt_n14(value: [] | [_Member]): Member | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n16(value: [] | [Principal]): Principal | null {
+function from_candid_opt_n15(value: [] | [Principal]): Principal | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n17(value: [] | [_ProposalDetail]): ProposalDetail | null {
-    return value.length === 0 ? null : from_candid_ProposalDetail_n18(value[0]);
+function from_candid_opt_n16(value: [] | [_ProposalDetail]): ProposalDetail | null {
+    return value.length === 0 ? null : from_candid_ProposalDetail_n17(value[0]);
 }
-function from_candid_opt_n23(value: [] | [boolean]): boolean | null {
+function from_candid_opt_n22(value: [] | [boolean]): boolean | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n26(value: [] | [bigint]): bigint | null {
+function from_candid_opt_n25(value: [] | [bigint]): bigint | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n30(value: [] | [_Vote]): Vote | null {
-    return value.length === 0 ? null : from_candid_Vote_n31(value[0]);
+function from_candid_opt_n29(value: [] | [_Vote]): Vote | null {
+    return value.length === 0 ? null : from_candid_Vote_n30(value[0]);
 }
-function from_candid_record_n19(value: {
+function from_candid_opt_n46(value: [] | [_ICRC16]): ICRC16 | null {
+    return value.length === 0 ? null : from_candid_ICRC16_n41(value[0]);
+}
+function from_candid_record_n18(value: {
     id: bigint;
     status: _ProposalStatus;
     title: string;
@@ -287,17 +420,17 @@ function from_candid_record_n19(value: {
 } {
     return {
         id: value.id,
-        status: from_candid_ProposalStatus_n20(value.status),
+        status: from_candid_ProposalStatus_n19(value.status),
         title: value.title,
         votesAgainst: value.votesAgainst,
         timeStart: value.timeStart,
         votesFor: value.votesFor,
         totalVotingPower: value.totalVotingPower,
         description: value.description,
-        timeEnd: record_opt_to_undefined(from_candid_opt_n26(value.timeEnd))
+        timeEnd: record_opt_to_undefined(from_candid_opt_n25(value.timeEnd))
     };
 }
-function from_candid_record_n22(value: {
+function from_candid_record_n21(value: {
     executingTime: _Time;
     error: string;
     failedTime: _Time;
@@ -312,10 +445,10 @@ function from_candid_record_n22(value: {
         executingTime: value.executingTime,
         error: value.error,
         failedTime: value.failedTime,
-        choice: record_opt_to_undefined(from_candid_opt_n23(value.choice))
+        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice))
     };
 }
-function from_candid_record_n24(value: {
+function from_candid_record_n23(value: {
     executingTime: _Time;
     choice: [] | [boolean];
 }): {
@@ -324,10 +457,10 @@ function from_candid_record_n24(value: {
 } {
     return {
         executingTime: value.executingTime,
-        choice: record_opt_to_undefined(from_candid_opt_n23(value.choice))
+        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice))
     };
 }
-function from_candid_record_n25(value: {
+function from_candid_record_n24(value: {
     executingTime: _Time;
     choice: [] | [boolean];
     executedTime: _Time;
@@ -338,11 +471,11 @@ function from_candid_record_n25(value: {
 } {
     return {
         executingTime: value.executingTime,
-        choice: record_opt_to_undefined(from_candid_opt_n23(value.choice)),
+        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice)),
         executedTime: value.executedTime
     };
 }
-function from_candid_record_n28(value: {
+function from_candid_record_n27(value: {
     data: Array<_ProposalDetail>;
     count: bigint;
     totalCount: bigint;
@@ -354,13 +487,13 @@ function from_candid_record_n28(value: {
     offset: bigint;
 } {
     return {
-        data: from_candid_vec_n29(value.data),
+        data: from_candid_vec_n28(value.data),
         count: value.count,
         totalCount: value.totalCount,
         offset: value.offset
     };
 }
-function from_candid_record_n32(value: {
+function from_candid_record_n31(value: {
     votingPower: bigint;
     choice: [] | [boolean];
 }): {
@@ -369,10 +502,58 @@ function from_candid_record_n32(value: {
 } {
     return {
         votingPower: value.votingPower,
-        choice: record_opt_to_undefined(from_candid_opt_n23(value.choice))
+        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice))
     };
 }
-function from_candid_variant_n14(value: {
+function from_candid_record_n40(value: {
+    id: bigint;
+    canister_id: Principal;
+    timestamp: bigint;
+    details: _ICRC16;
+    event_type: _OrchestrationEventType;
+}): {
+    id: bigint;
+    canister_id: Principal;
+    timestamp: bigint;
+    details: ICRC16;
+    event_type: OrchestrationEventType;
+} {
+    return {
+        id: value.id,
+        canister_id: value.canister_id,
+        timestamp: value.timestamp,
+        details: from_candid_ICRC16_n41(value.details),
+        event_type: from_candid_OrchestrationEventType_n52(value.event_type)
+    };
+}
+function from_candid_record_n51(value: {
+    value: _ICRC16;
+    name: string;
+    immutable: boolean;
+}): {
+    value: ICRC16;
+    name: string;
+    immutable: boolean;
+} {
+    return {
+        value: from_candid_ICRC16_n41(value.value),
+        name: value.name,
+        immutable: value.immutable
+    };
+}
+function from_candid_tuple_n44(value: [string, _ICRC16]): [string, ICRC16] {
+    return [
+        value[0],
+        from_candid_ICRC16_n41(value[1])
+    ];
+}
+function from_candid_tuple_n48(value: [_ICRC16, _ICRC16]): [ICRC16, ICRC16] {
+    return [
+        from_candid_ICRC16_n41(value[0]),
+        from_candid_ICRC16_n41(value[1])
+    ];
+}
+function from_candid_variant_n13(value: {
     ok: bigint;
 } | {
     err: string;
@@ -410,7 +591,7 @@ function from_candid_variant_n2(value: {
         err: value.err
     } : value;
 }
-function from_candid_variant_n21(value: {
+function from_candid_variant_n20(value: {
     failedToExecute: {
         executingTime: _Time;
         error: string;
@@ -457,26 +638,262 @@ function from_candid_variant_n21(value: {
 } {
     return "failedToExecute" in value ? {
         __kind__: "failedToExecute",
-        failedToExecute: from_candid_record_n22(value.failedToExecute)
+        failedToExecute: from_candid_record_n21(value.failedToExecute)
     } : "open" in value ? {
         __kind__: "open",
         open: value.open
     } : "executing" in value ? {
         __kind__: "executing",
-        executing: from_candid_record_n24(value.executing)
+        executing: from_candid_record_n23(value.executing)
     } : "executed" in value ? {
         __kind__: "executed",
-        executed: from_candid_record_n25(value.executed)
+        executed: from_candid_record_n24(value.executed)
     } : value;
 }
-function from_candid_vec_n29(value: Array<_ProposalDetail>): Array<ProposalDetail> {
-    return value.map((x)=>from_candid_ProposalDetail_n18(x));
+function from_candid_variant_n42(value: {
+    Int: bigint;
+} | {
+    Map: Array<[string, _ICRC16]>;
+} | {
+    Nat: bigint;
+} | {
+    Set: Array<_ICRC16>;
+} | {
+    Nat16: number;
+} | {
+    Nat32: number;
+} | {
+    Nat64: bigint;
+} | {
+    Blob: Uint8Array;
+} | {
+    Bool: boolean;
+} | {
+    Int8: number;
+} | {
+    Nat8: number;
+} | {
+    Nats: Array<bigint>;
+} | {
+    Text: string;
+} | {
+    Bytes: Uint8Array;
+} | {
+    Int16: number;
+} | {
+    Int32: number;
+} | {
+    Int64: bigint;
+} | {
+    Option: [] | [_ICRC16];
+} | {
+    Floats: Array<number>;
+} | {
+    Float: number;
+} | {
+    Principal: Principal;
+} | {
+    Array: Array<_ICRC16>;
+} | {
+    ValueMap: Array<[_ICRC16, _ICRC16]>;
+} | {
+    Class: Array<_ICRC16Property>;
+}): {
+    __kind__: "Int";
+    Int: bigint;
+} | {
+    __kind__: "Map";
+    Map: Array<[string, ICRC16]>;
+} | {
+    __kind__: "Nat";
+    Nat: bigint;
+} | {
+    __kind__: "Set";
+    Set: Array<ICRC16>;
+} | {
+    __kind__: "Nat16";
+    Nat16: number;
+} | {
+    __kind__: "Nat32";
+    Nat32: number;
+} | {
+    __kind__: "Nat64";
+    Nat64: bigint;
+} | {
+    __kind__: "Blob";
+    Blob: Uint8Array;
+} | {
+    __kind__: "Bool";
+    Bool: boolean;
+} | {
+    __kind__: "Int8";
+    Int8: number;
+} | {
+    __kind__: "Nat8";
+    Nat8: number;
+} | {
+    __kind__: "Nats";
+    Nats: Array<bigint>;
+} | {
+    __kind__: "Text";
+    Text: string;
+} | {
+    __kind__: "Bytes";
+    Bytes: Uint8Array;
+} | {
+    __kind__: "Int16";
+    Int16: number;
+} | {
+    __kind__: "Int32";
+    Int32: number;
+} | {
+    __kind__: "Int64";
+    Int64: bigint;
+} | {
+    __kind__: "Option";
+    Option: ICRC16 | null;
+} | {
+    __kind__: "Floats";
+    Floats: Array<number>;
+} | {
+    __kind__: "Float";
+    Float: number;
+} | {
+    __kind__: "Principal";
+    Principal: Principal;
+} | {
+    __kind__: "Array";
+    Array: Array<ICRC16>;
+} | {
+    __kind__: "ValueMap";
+    ValueMap: Array<[ICRC16, ICRC16]>;
+} | {
+    __kind__: "Class";
+    Class: Array<ICRC16Property>;
+} {
+    return "Int" in value ? {
+        __kind__: "Int",
+        Int: value.Int
+    } : "Map" in value ? {
+        __kind__: "Map",
+        Map: from_candid_vec_n43(value.Map)
+    } : "Nat" in value ? {
+        __kind__: "Nat",
+        Nat: value.Nat
+    } : "Set" in value ? {
+        __kind__: "Set",
+        Set: from_candid_vec_n45(value.Set)
+    } : "Nat16" in value ? {
+        __kind__: "Nat16",
+        Nat16: value.Nat16
+    } : "Nat32" in value ? {
+        __kind__: "Nat32",
+        Nat32: value.Nat32
+    } : "Nat64" in value ? {
+        __kind__: "Nat64",
+        Nat64: value.Nat64
+    } : "Blob" in value ? {
+        __kind__: "Blob",
+        Blob: value.Blob
+    } : "Bool" in value ? {
+        __kind__: "Bool",
+        Bool: value.Bool
+    } : "Int8" in value ? {
+        __kind__: "Int8",
+        Int8: value.Int8
+    } : "Nat8" in value ? {
+        __kind__: "Nat8",
+        Nat8: value.Nat8
+    } : "Nats" in value ? {
+        __kind__: "Nats",
+        Nats: value.Nats
+    } : "Text" in value ? {
+        __kind__: "Text",
+        Text: value.Text
+    } : "Bytes" in value ? {
+        __kind__: "Bytes",
+        Bytes: value.Bytes
+    } : "Int16" in value ? {
+        __kind__: "Int16",
+        Int16: value.Int16
+    } : "Int32" in value ? {
+        __kind__: "Int32",
+        Int32: value.Int32
+    } : "Int64" in value ? {
+        __kind__: "Int64",
+        Int64: value.Int64
+    } : "Option" in value ? {
+        __kind__: "Option",
+        Option: from_candid_opt_n46(value.Option)
+    } : "Floats" in value ? {
+        __kind__: "Floats",
+        Floats: value.Floats
+    } : "Float" in value ? {
+        __kind__: "Float",
+        Float: value.Float
+    } : "Principal" in value ? {
+        __kind__: "Principal",
+        Principal: value.Principal
+    } : "Array" in value ? {
+        __kind__: "Array",
+        Array: from_candid_vec_n45(value.Array)
+    } : "ValueMap" in value ? {
+        __kind__: "ValueMap",
+        ValueMap: from_candid_vec_n47(value.ValueMap)
+    } : "Class" in value ? {
+        __kind__: "Class",
+        Class: from_candid_vec_n49(value.Class)
+    } : value;
 }
-function to_candid_InitializeOptions_n8(value: InitializeOptions): _InitializeOptions {
+function from_candid_variant_n53(value: {
+    upgrade_initiated: null;
+} | {
+    snapshot_requested: null;
+} | {
+    snapshot_revert_requested: null;
+} | {
+    snapshot_cleaned: null;
+} | {
+    upgrade_finished: null;
+} | {
+    configuration_changed: null;
+} | {
+    snapshot_reverted: null;
+} | {
+    canister_started: null;
+} | {
+    snapshot_created: null;
+} | {
+    canister_stopped: null;
+}): OrchestrationEventType {
+    return "upgrade_initiated" in value ? OrchestrationEventType.upgrade_initiated : "snapshot_requested" in value ? OrchestrationEventType.snapshot_requested : "snapshot_revert_requested" in value ? OrchestrationEventType.snapshot_revert_requested : "snapshot_cleaned" in value ? OrchestrationEventType.snapshot_cleaned : "upgrade_finished" in value ? OrchestrationEventType.upgrade_finished : "configuration_changed" in value ? OrchestrationEventType.configuration_changed : "snapshot_reverted" in value ? OrchestrationEventType.snapshot_reverted : "canister_started" in value ? OrchestrationEventType.canister_started : "snapshot_created" in value ? OrchestrationEventType.snapshot_created : "canister_stopped" in value ? OrchestrationEventType.canister_stopped : value;
+}
+function from_candid_vec_n28(value: Array<_ProposalDetail>): Array<ProposalDetail> {
+    return value.map((x)=>from_candid_ProposalDetail_n17(x));
+}
+function from_candid_vec_n38(value: Array<_OrchestrationEvent>): Array<OrchestrationEvent> {
+    return value.map((x)=>from_candid_OrchestrationEvent_n39(x));
+}
+function from_candid_vec_n43(value: Array<[string, _ICRC16]>): Array<[string, ICRC16]> {
+    return value.map((x)=>from_candid_tuple_n44(x));
+}
+function from_candid_vec_n45(value: Array<_ICRC16>): Array<ICRC16> {
+    return value.map((x)=>from_candid_ICRC16_n41(x));
+}
+function from_candid_vec_n47(value: Array<[_ICRC16, _ICRC16]>): Array<[ICRC16, ICRC16]> {
+    return value.map((x)=>from_candid_tuple_n48(x));
+}
+function from_candid_vec_n49(value: Array<_ICRC16Property>): Array<ICRC16Property> {
+    return value.map((x)=>from_candid_ICRC16Property_n50(x));
+}
+function to_candid_GetEventsFilter_n33(value: GetEventsFilter): _GetEventsFilter {
+    return to_candid_record_n34(value);
+}
+function to_candid_InstallOptions_n8(value: InstallOptions): _InstallOptions {
     return to_candid_record_n9(value);
 }
-function to_candid_InstallAndInitializeOptions_n10(value: InstallAndInitializeOptions): _InstallAndInitializeOptions {
-    return to_candid_record_n11(value);
+function to_candid_OrchestrationEventType_n36(value: OrchestrationEventType): _OrchestrationEventType {
+    return to_candid_variant_n37(value);
 }
 function to_candid_ProposalData__1_n5(value: ProposalData__1): _ProposalData__1 {
     return to_candid_record_n6(value);
@@ -484,29 +901,37 @@ function to_candid_ProposalData__1_n5(value: ProposalData__1): _ProposalData__1 
 function to_candid_ProposalKind_n3(value: ProposalKind): _ProposalKind {
     return to_candid_variant_n4(value);
 }
-function to_candid_record_n11(value: {
-    initializeOptions: InitializeOptions;
-    initArgs: {
-        __kind__: "raw";
-        raw: Uint8Array;
-    } | {
-        __kind__: "candidText";
-        candidText: string;
-    };
-    wasmHash: Uint8Array;
+function to_candid_record_n32(value: {
+    prev?: Uint8Array;
+    take?: bigint;
+    filter?: GetEventsFilter;
 }): {
-    initializeOptions: _InitializeOptions;
-    initArgs: {
-        raw: Uint8Array;
-    } | {
-        candidText: string;
-    };
-    wasmHash: Uint8Array;
+    prev: [] | [Uint8Array];
+    take: [] | [bigint];
+    filter: [] | [_GetEventsFilter];
 } {
     return {
-        initializeOptions: to_candid_InitializeOptions_n8(value.initializeOptions),
-        initArgs: to_candid_variant_n12(value.initArgs),
-        wasmHash: value.wasmHash
+        prev: value.prev ? candid_some(value.prev) : candid_none(),
+        take: value.take ? candid_some(value.take) : candid_none(),
+        filter: value.filter ? candid_some(to_candid_GetEventsFilter_n33(value.filter)) : candid_none()
+    };
+}
+function to_candid_record_n34(value: {
+    event_types?: Array<OrchestrationEventType>;
+    end_time?: bigint;
+    start_time?: bigint;
+    canister?: Principal;
+}): {
+    event_types: [] | [Array<_OrchestrationEventType>];
+    end_time: [] | [bigint];
+    start_time: [] | [bigint];
+    canister: [] | [Principal];
+} {
+    return {
+        event_types: value.event_types ? candid_some(to_candid_vec_n35(value.event_types)) : candid_none(),
+        end_time: value.end_time ? candid_some(value.end_time) : candid_none(),
+        start_time: value.start_time ? candid_some(value.start_time) : candid_none(),
+        canister: value.canister ? candid_some(value.canister) : candid_none()
     };
 }
 function to_candid_record_n6(value: {
@@ -514,20 +939,15 @@ function to_candid_record_n6(value: {
         __kind__: "set";
         set: null;
     } | {
-        __kind__: "installAndInitialize";
-        installAndInitialize: InstallAndInitializeOptions;
-    } | {
-        __kind__: "initialize";
-        initialize: InitializeOptions;
+        __kind__: "install";
+        install: InstallOptions;
     };
     canisterId: Principal;
 }): {
     kind: {
         set: null;
     } | {
-        installAndInitialize: _InstallAndInitializeOptions;
-    } | {
-        initialize: _InitializeOptions;
+        install: _InstallOptions;
     };
     canisterId: Principal;
 } {
@@ -537,21 +957,37 @@ function to_candid_record_n6(value: {
     };
 }
 function to_candid_record_n9(value: {
-    hostname: string;
-    serviceSubdomain?: string;
-    plcIdentifier: string;
+    initArgs: {
+        __kind__: "raw";
+        raw: Uint8Array;
+    } | {
+        __kind__: "candidText";
+        candidText: string;
+    };
+    wasmHash: Uint8Array;
+    kind: Variant_reinstall_upgrade_install;
 }): {
-    hostname: string;
-    serviceSubdomain: [] | [string];
-    plcIdentifier: string;
+    initArgs: {
+        raw: Uint8Array;
+    } | {
+        candidText: string;
+    };
+    wasmHash: Uint8Array;
+    kind: {
+        reinstall: null;
+    } | {
+        upgrade: null;
+    } | {
+        install: null;
+    };
 } {
     return {
-        hostname: value.hostname,
-        serviceSubdomain: value.serviceSubdomain ? candid_some(value.serviceSubdomain) : candid_none(),
-        plcIdentifier: value.plcIdentifier
+        initArgs: to_candid_variant_n10(value.initArgs),
+        wasmHash: value.wasmHash,
+        kind: to_candid_variant_n11(value.kind)
     };
 }
-function to_candid_variant_n12(value: {
+function to_candid_variant_n10(value: {
     __kind__: "raw";
     raw: Uint8Array;
 } | {
@@ -566,6 +1002,64 @@ function to_candid_variant_n12(value: {
         raw: value.raw
     } : value.__kind__ === "candidText" ? {
         candidText: value.candidText
+    } : value;
+}
+function to_candid_variant_n11(value: Variant_reinstall_upgrade_install): {
+    reinstall: null;
+} | {
+    upgrade: null;
+} | {
+    install: null;
+} {
+    return value == Variant_reinstall_upgrade_install.reinstall ? {
+        reinstall: null
+    } : value == Variant_reinstall_upgrade_install.upgrade ? {
+        upgrade: null
+    } : value == Variant_reinstall_upgrade_install.install ? {
+        install: null
+    } : value;
+}
+function to_candid_variant_n37(value: OrchestrationEventType): {
+    upgrade_initiated: null;
+} | {
+    snapshot_requested: null;
+} | {
+    snapshot_revert_requested: null;
+} | {
+    snapshot_cleaned: null;
+} | {
+    upgrade_finished: null;
+} | {
+    configuration_changed: null;
+} | {
+    snapshot_reverted: null;
+} | {
+    canister_started: null;
+} | {
+    snapshot_created: null;
+} | {
+    canister_stopped: null;
+} {
+    return value == OrchestrationEventType.upgrade_initiated ? {
+        upgrade_initiated: null
+    } : value == OrchestrationEventType.snapshot_requested ? {
+        snapshot_requested: null
+    } : value == OrchestrationEventType.snapshot_revert_requested ? {
+        snapshot_revert_requested: null
+    } : value == OrchestrationEventType.snapshot_cleaned ? {
+        snapshot_cleaned: null
+    } : value == OrchestrationEventType.upgrade_finished ? {
+        upgrade_finished: null
+    } : value == OrchestrationEventType.configuration_changed ? {
+        configuration_changed: null
+    } : value == OrchestrationEventType.snapshot_reverted ? {
+        snapshot_reverted: null
+    } : value == OrchestrationEventType.canister_started ? {
+        canister_started: null
+    } : value == OrchestrationEventType.snapshot_created ? {
+        snapshot_created: null
+    } : value == OrchestrationEventType.canister_stopped ? {
+        canister_stopped: null
     } : value;
 }
 function to_candid_variant_n4(value: {
@@ -589,25 +1083,21 @@ function to_candid_variant_n7(value: {
     __kind__: "set";
     set: null;
 } | {
-    __kind__: "installAndInitialize";
-    installAndInitialize: InstallAndInitializeOptions;
-} | {
-    __kind__: "initialize";
-    initialize: InitializeOptions;
+    __kind__: "install";
+    install: InstallOptions;
 }): {
     set: null;
 } | {
-    installAndInitialize: _InstallAndInitializeOptions;
-} | {
-    initialize: _InitializeOptions;
+    install: _InstallOptions;
 } {
     return value.__kind__ === "set" ? {
         set: value.set
-    } : value.__kind__ === "installAndInitialize" ? {
-        installAndInitialize: to_candid_InstallAndInitializeOptions_n10(value.installAndInitialize)
-    } : value.__kind__ === "initialize" ? {
-        initialize: to_candid_InitializeOptions_n8(value.initialize)
+    } : value.__kind__ === "install" ? {
+        install: to_candid_InstallOptions_n8(value.install)
     } : value;
+}
+function to_candid_vec_n35(value: Array<OrchestrationEventType>): Array<_OrchestrationEventType> {
+    return value.map((x)=>to_candid_OrchestrationEventType_n36(x));
 }
 export interface CreateActorOptions {
     agent?: Agent;

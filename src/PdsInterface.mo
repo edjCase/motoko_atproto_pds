@@ -1,11 +1,13 @@
 import Result "mo:core@1/Result";
 import DagCbor "mo:dag-cbor@2";
 import MerkleNode "mo:atproto@0/MerkleNode";
+import Time "mo:core@1/Time";
 
 module {
   public type Actor = actor {
+    getInitializationStatus : query () -> async InitializationStatus;
 
-    initialize : (request : InitializeRequest) -> async Result.Result<(), Text>;
+    reinitialize : (requestOrNull : ?InitializeRequest) -> async Result.Result<(), Text>;
     getLogs : query (limit : Nat, offset : Nat) -> async [LogEntry];
     clearLogs : () -> async Result.Result<(), Text>;
 
@@ -26,6 +28,45 @@ module {
     updatePlcDid : (request : UpdatePlcRequest) -> async Result.Result<(), Text>;
   };
 
+  public type InitializeRequest = {
+    plcKind : PlcKind;
+    hostname : Text;
+    serviceSubdomain : ?Text;
+  };
+
+  public type InstallArgs = InitializeRequest and {
+    owner : ?Principal;
+  };
+
+  public type InitializationStatus = {
+    #notInitialized : {
+      previousAttempt : ?FailedAttempt;
+    };
+    #initializing : {
+      startTime : Time.Time;
+      request : InitializeRequest;
+    };
+    #initialized : {
+      startTime : Time.Time;
+      endTime : Time.Time;
+      request : InitializeRequest;
+      info : ServerInfo;
+    };
+  };
+
+  public type ServerInfo = {
+    serviceSubdomain : ?Text;
+    hostname : Text;
+    plcIdentifier : Text;
+  };
+
+  public type FailedAttempt = {
+    startTime : Time.Time;
+    endTime : Time.Time;
+    request : InitializeRequest;
+    errorMessage : Text;
+  };
+
   public type LogLevel = {
     #verbose;
     #debug_;
@@ -39,6 +80,12 @@ module {
     time : Int;
     level : LogLevel;
     message : Text;
+  };
+
+  public type ICRC120UpgradeFinishedResult = {
+    #Failed : (Nat, Text);
+    #Success : Nat;
+    #InProgress : Nat;
   };
 
   public type CIDText = Text;
@@ -142,12 +189,6 @@ module {
     validationStatus : ?ValidationStatus;
   };
 
-  public type InitializeRequest = {
-    plc : PlcKind;
-    hostname : Text;
-    serviceSubdomain : ?Text;
-  };
-
   public type PlcKind = {
     #new : CreatePlcRequest;
     #id : Text;
@@ -159,15 +200,15 @@ module {
     services : [PlcService];
   };
 
-  public type UpdatePlcRequest = {
-    did : Text;
-    alsoKnownAs : [Text];
-    services : [PlcService];
-  };
-
   public type PlcService = {
     id : Text;
     type_ : Text;
     endpoint : Text;
+  };
+
+  public type UpdatePlcRequest = {
+    did : Text;
+    alsoKnownAs : [Text];
+    services : [PlcService];
   };
 };

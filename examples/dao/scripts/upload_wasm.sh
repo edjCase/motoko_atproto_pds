@@ -3,7 +3,6 @@
 set -e
 # Configuration
 DEFAULT_CHUNK_SIZE=$((1 * 1024 * 1024))  # 1MB
-DEFAULT_PATH="../../.dfx/ic/canisters/pds/pds.wasm"
 CHUNK_SIZE=${CHUNK_SIZE:-$DEFAULT_CHUNK_SIZE}
 
 if [ -z "$1" ]; then
@@ -15,6 +14,7 @@ if [ -z "$1" ]; then
 fi
 
 network=$1
+DEFAULT_PATH="../../.dfx/$network/canisters/pds/pds.wasm"
 wasm_file=${2:-$DEFAULT_PATH}
 
 if [ ! -f "$wasm_file" ]; then

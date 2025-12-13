@@ -48,6 +48,7 @@ module {
   public type WasmStore = {
     getChunk : (wasmHash : WasmHash, index : Nat, expectedHashOrNull : ?Blob) -> async* Result.Result<Blob, GetChunkError>;
     getWasm : (wasmHash : WasmHash) -> async* ?WasmData;
+    getHashes : () -> async* [WasmHash];
   };
 
   public class RemoteWasmStore<system>(canisterId : Principal) : WasmStore {
@@ -71,6 +72,11 @@ module {
 
     public func getWasm(wasmHash : WasmHash) : async* ?WasmData {
       null;
+    };
+
+    public func getHashes() : async* [WasmHash] {
+      // TODO implement
+      [];
     };
   };
 
@@ -178,6 +184,10 @@ module {
 
     public func getWasm(wasmHash : WasmHash) : async* ?WasmData {
       PureMap.get(wasmMap, Blob.compare, wasmHash);
+    };
+
+    public func getHashes() : async* [WasmHash] {
+      PureMap.keys(wasmMap) |> Iter.toArray(_);
     };
 
     public func toStableData() : LocalStableData {

@@ -21,6 +21,9 @@ module {
 
   public type StableData = ICRC120.State;
 
+  public type OrchestrationEvent = ICRC120.CurrentTypes.OrchestrationEvent;
+  public type GetEventsFilter = ICRC120.CurrentTypes.GetEventsFilter;
+
   public class Orchestrator<system>(
     deployer : Principal,
     daoPrincipal : Principal,
@@ -68,9 +71,7 @@ module {
           };
           let chunks = Array.map<WasmStore.Chunk, Blob>(
             wasmData.chunks,
-            func(chunk : WasmStore.Chunk) : Blob {
-              chunk.bytes;
-            },
+            func(chunk : WasmStore.Chunk) : Blob = chunk.hash,
           );
           // TODO what is the principal?
           #ok((daoPrincipal, chunks));

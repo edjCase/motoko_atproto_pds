@@ -3,29 +3,78 @@ set -e
 
 if [ -z "$1" ]; then
     echo "Error: network required"
-    echo "Usage: $0 <network> <mode>"
+    echo "Usage: $0 <network> ('new'|<plc_did>) [mode]"
     exit 1
 fi
 
-
 if [ -z "$2" ]; then
-    mode="auto"
-else
-    mode=$2
+    echo "Error: plc_did argument required"
+    echo "Usage: $0 <network> ('new'|<plc_did>) [mode]"
+    echo "  Specify 'new' to create a new DID, or provide an existing PLC DID"
+    exit 1
 fi
 
+if [ -z "$3" ]; then
+    mode="auto"
+else
+    mode=$3
+fi
 
 network=$1
+plc_did=$2
 
-echo "Deploying PDS to network '${network}' and using mode '${mode}'..."
+# Map network to hostname
+case "${network}" in
+    local)
+        # Use canister ID placeholder - will be determined after deploy
+        hostname="\${CANISTER_ID}.localhost"
+        serviceSubdomain=
+        serviceSubdomainCandid="null"
+        port=":4943"
+        ;;
+    ic)
+        hostname="edjcase.com"
+        serviceSubdomain="pds"
+        serviceSubdomainCandid="opt \"${serviceSubdomain}\""
+        port=""
+        ;;
+    *)
+        echo "Error: Unsupported network '${network}'"
+        echo "Supported networks: local, ic"
+        exit 1
+        ;;
+esac
 
+# Build PLC variant
+if [ "$plc_did" = "new" ]; then
+    echo "Deploying PDS to network '${network}' using mode '${mode}' with new DID..."
+    # For local, we need to get canister ID first for the hostname
+    if [ "${network}" = "local" ]; then
+        canister_id=$(dfx canister id pds --network "${network}" 2>/dev/null || dfx canister create pds --network "${network}" --no-wallet | grep -o 'canister id: [^ ]*' | awk '{print $3}')
+        hostname="${canister_id}.localhost"
+        fullDomain="${hostname}"
+    else
+        fullDomain="${serviceSubdomain}.${hostname}"
+    fi
+    
+    # Create new PLC identity
+    plc_variant="variant { new = record { alsoKnownAs = vec { \"at://${hostname}\" }; services = vec { record { id = \"atproto_pds\"; type_ = \"AtprotoPersonalDataServer\"; endpoint = \"https://${fullDomain}\" } } } }"
+else
+    echo "Deploying PDS to network '${network}' using mode '${mode}' with existing DID: ${plc_did}..."
+    # Use provided PLC DID
+    plc_variant="variant { id = \"${plc_did}\" }"
+fi
 
-# Deploy PDS
-response=$(dfx deploy pds --argument-type idl --argument "(record { owner = null })" --network "${network}" --mode "${mode}")
+# Build candid args with all initialization parameters
+candid_args="(record { owner = null; plcKind = ${plc_variant}; hostname = \"${hostname}\"; serviceSubdomain = ${serviceSubdomainCandid} })"
+echo "Candid args: ${candid_args}"
+
+# Deploy PDS with initialization arguments
+response=$(dfx deploy pds --argument-type idl --argument "${candid_args}" --network "${network}" --mode "${mode}")
 
 echo "$response"
 
 # Extract canister ID
-canister_id=$(dfx canister id pds --network "${network}" )
+canister_id=$(dfx canister id pds --network "${network}")
 
-echo "Successfully deployed PDS canister with ID: $canister_id"
+echo "Successfully deployed PDS canister with ID: ${canister_id} at: ${hostname}${port}"

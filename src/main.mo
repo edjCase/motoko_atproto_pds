@@ -36,13 +36,10 @@ import Nat "mo:core@1/Nat";
 import Time "mo:core@1/Time";
 import Array "mo:core@1/Array";
 import Commit "mo:atproto@0/Commit";
+import Timer "mo:core/Timer";
 
-shared ({ caller = deployer }) persistent actor class Pds(
-  initData : {
-    owner : ?Principal;
-  }
-) : async PdsInterface.Actor = this {
-  var owner = Option.get(initData.owner, deployer);
+shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInterface.InstallArgs) : async PdsInterface.Actor = this {
+  var owner = Option.get(installArgs.owner, deployer);
 
   var repositoryMessageStableData : RepositoryMessageHandler.StableData = {
     messages = PureQueue.empty<RepositoryMessageHandler.QueueMessage>();
@@ -214,7 +211,7 @@ shared ({ caller = deployer }) persistent actor class Pds(
 
   system func preupgrade() {
     keyHandlerStableData := keyHandler.toStableData();
-    serverInfoStableData := serverInfoHandler.toStableData();
+    serverInfoStableData := ?serverInfoHandler.toStableData();
     repositoryStableData := repositoryHandler.toStableData();
     repositoryMessageStableData := messageHandler.toStableData();
   };
@@ -498,61 +495,25 @@ shared ({ caller = deployer }) persistent actor class Pds(
     });
   };
 
-  // Candid API methods
-  public shared ({ caller }) func initialize(request : PdsInterface.InitializeRequest) : async Result.Result<(), Text> {
+  public query func getInitializationStatus() : async PdsInterface.InitializationStatus {
+    switch (serverInfoHandler.getState()) {
+      case (#notInitialized(notInitialized)) #notInitialized(notInitialized);
+      case (#initializing(initializing)) #initializing(initializing);
+      case (#initialized(initialized)) #initialized({
+        initialized with
+        info = {
+          initialized.info with
+          plcIdentifier = DID.Plc.toText(initialized.info.plcIdentifier);
+        };
+      });
+    };
+  };
+
+  public shared ({ caller }) func reinitialize(requestOrNull : ?PdsInterface.InitializeRequest) : async Result.Result<(), Text> {
     if (caller != owner) {
       return #err("Only the owner can initialize the PDS");
     };
-    // TODO prevent re-initialization?
-    let (plcIndentifier, repository) : (DID.Plc.DID, ?Repository.Repository) = switch (request.plc) {
-      case (#new(createRequest)) {
-        switch (await* didDirectoryHandler.create(createRequest)) {
-          case (#ok(did)) (did, null);
-          case (#err(e)) return #err("Failed to create PLC identifier: " # e);
-        };
-      };
-      case (#id(id)) {
-        switch (DID.Plc.fromText(id)) {
-          case (#ok(did)) (did, null);
-          case (#err(e)) return #err("Invalid PLC identifier '" # id # "': " # e);
-        };
-      };
-      case (#car(carBlob)) {
-        switch (CAR.fromBytes(carBlob.vals())) {
-          case (#ok(parsedFile)) switch (CarUtil.toRepository(parsedFile)) {
-            case (#ok((did, repo))) (did, ?repo);
-            case (#err(error)) return #err("Failed to build repository from CAR file: " # error);
-          };
-          case (#err(error)) return #err("Failed to parse CAR file: " # error);
-        };
-      };
-    };
-    serverInfoHandler.set({
-      hostname = request.hostname;
-      plcIdentifier = plcIndentifier;
-      serviceSubdomain = request.serviceSubdomain;
-    });
-    switch (await* repositoryHandler.initialize(repository)) {
-      case (#ok(_)) ();
-      case (#err(e)) return #err("Failed to create repository: " # e);
-    };
-    onIdentityChange({
-      did = #plc(plcIndentifier);
-      handle = ?request.hostname;
-    });
-    onAccountChange({
-      did = #plc(plcIndentifier);
-      active = true;
-      status = null;
-    });
-
-    // TODO can this be built into the WellKnownRouter instead?
-    let serverInfo = serverInfoHandler.get();
-    let icDomains = WellKnownRouter.getIcDomainsText(serverInfo);
-    let icDomainsBlob = Text.encodeUtf8(icDomains);
-    let icDomainsEndpoint = CertifiedAssets.Endpoint("/.well-known/ic-domains", ?icDomainsBlob).no_certification().no_request_certification();
-    StableCertifiedAssets.certify(certStore, icDomainsEndpoint);
-    #ok;
+    await* reinitializeInternal(requestOrNull);
   };
 
   public shared ({ caller }) func createPlcDid(request : PdsInterface.CreatePlcRequest) : async Result.Result<Text, Text> {
@@ -581,6 +542,109 @@ shared ({ caller = deployer }) persistent actor class Pds(
       case (#ok) #ok;
       case (#err(e)) #err("Failed to update PLC identifier: " # e);
     };
+  };
+
+  public func icrc120_upgrade_finished() : async PdsInterface.ICRC120UpgradeFinishedResult {
+    switch (serverInfoHandler.getState()) {
+      case (#notInitialized({ previousAttempt })) {
+        switch (previousAttempt) {
+          case (null) #Failed((Nat.fromInt(Time.now()), "Unknown error occurred before initialization"));
+          case (?attempt) #Failed((Nat.fromInt(attempt.startTime), attempt.errorMessage));
+        };
+      };
+      case (#initializing(initializing)) #InProgress(Nat.fromInt(initializing.startTime));
+      case (#initialized(initialized)) #Success(Nat.fromInt(initialized.endTime));
+    };
+  };
+
+  private func reinitializeInternal(requestOrNull : ?PdsInterface.InitializeRequest) : async* Result.Result<(), Text> {
+    let previousAttemptOrNull = switch (serverInfoHandler.getState()) {
+      case (#notInitialized({ previousAttempt })) previousAttempt;
+      case (#initialized(_)) return #err("PDS is already initialized");
+      case (#initializing(_)) return #err("PDS is currently initializing");
+    };
+    let request : PdsInterface.InitializeRequest = switch (requestOrNull) {
+      case (null) {
+        let ?previousAttempt = previousAttemptOrNull else return #err("No previous initialization attempt found; please provide an InitializeRequest");
+        previousAttempt.request; // Reuse previous request if not specified
+      };
+      case (?request) request;
+    };
+    let startTime = Time.now();
+    serverInfoHandler.set(#initializing({ request = request; startTime = startTime }));
+    let (plcIndentifier, repository) : (DID.Plc.DID, ?Repository.Repository) = switch (request.plcKind) {
+      case (#new(createRequest)) {
+        switch (await* didDirectoryHandler.create(createRequest)) {
+          case (#ok(did)) (did, null);
+          case (#err(e)) return #err("Failed to create PLC identifier: " # e);
+        };
+      };
+      case (#id(id)) {
+        switch (DID.Plc.fromText(id)) {
+          case (#ok(did)) (did, null);
+          case (#err(e)) return #err("Invalid PLC identifier '" # id # "': " # e);
+        };
+      };
+      case (#car(carBlob)) {
+        switch (CAR.fromBytes(carBlob.vals())) {
+          case (#ok(parsedFile)) switch (CarUtil.toRepository(parsedFile)) {
+            case (#ok((did, repo))) (did, ?repo);
+            case (#err(error)) return #err("Failed to build repository from CAR file: " # error);
+          };
+          case (#err(error)) return #err("Failed to parse CAR file: " # error);
+        };
+      };
+    };
+    let newState : ServerInfoHandler.State = #initialized({
+      startTime = startTime;
+      endTime = Time.now();
+      request = request;
+      info = {
+        serviceSubdomain = request.serviceSubdomain;
+        hostname = request.hostname;
+        plcIdentifier = plcIndentifier;
+      };
+    });
+    serverInfoHandler.set(newState);
+    switch (await* repositoryHandler.initialize(repository)) {
+      case (#ok(_)) ();
+      case (#err(e)) return #err("Failed to create repository: " # e);
+    };
+    onIdentityChange({
+      did = #plc(plcIndentifier);
+      handle = ?request.hostname;
+    });
+    onAccountChange({
+      did = #plc(plcIndentifier);
+      active = true;
+      status = null;
+    });
+
+    // TODO can this be built into the WellKnownRouter instead?
+    let serverInfo = serverInfoHandler.get();
+    let icDomains = WellKnownRouter.getIcDomainsText(serverInfo);
+    let icDomainsBlob = Text.encodeUtf8(icDomains);
+    let icDomainsEndpoint = CertifiedAssets.Endpoint("/.well-known/ic-domains", ?icDomainsBlob).no_certification().no_request_certification();
+    StableCertifiedAssets.certify(certStore, icDomainsEndpoint);
+    #ok;
+  };
+
+  // Run timer immediately after initial installation
+
+  switch (serverInfoHandler.getState()) {
+    // Only attempt initialization if not initialized and no previous attempt
+    case (#notInitialized({ previousAttempt = null })) {
+      ignore Timer.setTimer<system>(
+        #seconds(0),
+        func() : async () {
+          switch (await* reinitializeInternal(?installArgs)) {
+            case (#ok) logger.log(#info, "PDS initialized successfully on install");
+            case (#err(e)) logger.log(#error, "Failed to initialize PDS on install: " # e);
+          };
+        },
+      );
+    };
+    case (_) ();
   };
 
 };

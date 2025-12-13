@@ -15,6 +15,7 @@ import Orchestrator "Orchestrator";
 import Logger "Logger";
 import WasmStore "WasmStore";
 import Nat "mo:core@1/Nat";
+import Debug "mo:core@1/Debug";
 
 shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface.Actor = this {
 
@@ -49,7 +50,12 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
       advanced = null;
       syncUnsafe = null;
       reportExecution = null;
-      reportError = null;
+      reportError = ?(
+        func(err : { action : TimerTool.ActionDetail; awaited : Bool; error : TimerTool.Error }) : ?Nat {
+          Debug.print("TimerTool error: " # debug_show (err));
+          null;
+        }
+      );
       reportBatch = null;
     },
     func(newState : TimerTool.State) {
@@ -153,6 +159,21 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
     };
   };
 
+  public func getWasmHashes() : async [Text] {
+    // TODO auth
+    let hashes = await* wasmStore.getHashes();
+    Array.map(hashes, func(hash) = debug_show (hash));
+  };
+
+  public query (_msg) func icrc120_get_events(
+    input : {
+      filter : ?Orchestrator.GetEventsFilter;
+      prev : ?Blob;
+      take : ?Nat;
+    }
+  ) : async [Orchestrator.OrchestrationEvent] {
+    orchestrator.factory().icrc120_get_events(input);
+  };
   // TODO remove and make it a DAO proposal
   public shared ({ caller }) func addMember(id : Principal) : async Result.Result<(), Text> {
     let isCallerMember = PureMap.containsKey(membersMap, Principal.compare, caller);
@@ -274,27 +295,22 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
           case (#set) {
             ("Set PDS Canister", canisterIdText);
           };
-          case (#initialize(opts)) {
-            let details = canisterIdText # "\n\nInitialization Options:\n" #
-            "  Hostname: " # opts.hostname # "\n" #
-            "  Service Subdomain: " # (switch (opts.serviceSubdomain) { case (?sub) sub; case (null) "(none)" }) # "\n" #
-            "  PLC Identifier: " # opts.plcIdentifier;
-            ("Initialize PDS Canister", details);
-          };
-          case (#installAndInitialize(opts)) {
+          case (#install(opts)) {
+            let kind = switch (opts.kind) {
+              case (#install) "Install";
+              case (#reinstall) "Reinstall";
+              case (#upgrade) "Upgrade";
+            };
             let wasmHashText = debug_show (opts.wasmHash);
             let initArgsText = switch (opts.initArgs) {
               case (#candidText(text)) "Candid Text:\n    " # text;
               case (#raw(blob)) "Raw (hex): " # debug_show (blob);
             };
             let details = canisterIdText # "\n\nInstallation:\n" #
+            "  Kind: " # kind # "\n" #
             "  WASM Hash: " # wasmHashText # "\n" #
-            "  Init Args: " # initArgsText # "\n\n" #
-            "Initialization Options:\n" #
-            "  Hostname: " # opts.initializeOptions.hostname # "\n" #
-            "  Service Subdomain: " # (switch (opts.initializeOptions.serviceSubdomain) { case (?sub) sub; case (null) "(none)" }) # "\n" #
-            "  PLC Identifier: " # opts.initializeOptions.plcIdentifier;
-            ("Install and Initialize PDS Canister", details);
+            "  Init Args - " # initArgsText # "\n\n";
+            ("Install PDS Canister", details);
           };
         };
         (kindText, kindDetails);

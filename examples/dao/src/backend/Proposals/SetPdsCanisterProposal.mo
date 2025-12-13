@@ -9,6 +9,8 @@ import List "mo:core@1/List";
 import ICRC120 "mo:icrc120-mo@0";
 import Candid "mo:candid@2";
 import Blob "mo:core@1/Blob";
+import Time "mo:core@1/Time";
+import Nat "mo:core@1/Nat";
 
 module {
 
@@ -16,25 +18,24 @@ module {
     canisterId : Principal;
     kind : {
       #set;
-      #initialize : InitializeOptions;
-      #installAndInitialize : InstallAndInitializeOptions;
+      #install : InstallOptions;
     };
   };
 
-  public type InitializeOptions = {
-    hostname : Text;
-    serviceSubdomain : ?Text;
-    plcIdentifier : Text;
-  };
-
-  public type InstallAndInitializeOptions = {
+  public type InstallOptions = {
+    kind : {
+      #install;
+      #reinstall;
+      #upgrade;
+    };
     wasmHash : Blob;
     initArgs : {
       #raw : Blob;
       #candidText : Text;
     };
-    initializeOptions : InitializeOptions;
   };
+
+  public type UpgradeOptions = InstallOptions;
 
   public func onAdopt(
     daoPrincipal : Principal,
@@ -48,56 +49,15 @@ module {
         updatePdsCanisterId(proposalData.canisterId);
         #ok;
       };
-      case (#initialize(initOptions)) {
-        // Update the PDS canister ID after successful initialization
-        updatePdsCanisterId(proposalData.canisterId);
-        // Initialize an existing PDS canister
-        await* initialize(proposalData.canisterId, initOptions);
-      };
-      case (#installAndInitialize(installOptions)) {
-
-        // Update the PDS canister ID after successful initialization
-        updatePdsCanisterId(proposalData.canisterId);
+      case (#install(installOptions)) {
 
         let _requestId = switch (await* install(daoPrincipal, proposalData.canisterId, orchestratorFactory, installOptions)) {
           case (#ok(requestId)) requestId;
           case (#err(error)) return #err(error);
         };
-
-        // TODO validate request completion
-        // var tries = 0;
-        // label l loop {
-        //   let events = await orchestratorFactory().icrc120_get_events({
-        //     filter = ?{
-        //       canister = ?proposalData.canisterId;
-        //       event_types = ?[#upgrade_finished];
-        //       start_time = null;
-        //       end_time = null;
-        //     };
-        //     prev = null;
-        //     take = ?10;
-        //   });
-
-        //   // Find events related to this request
-        //   for (event in events.vals()) {
-        //     switch (event.event_type) {
-        //       case (#upgrade_finished) {
-        //         if (event.details.id == requestId) {
-        //           break l;
-        //         };
-        //       };
-        //       case (_) ();
-        //     };
-        //   };
-        //   // TODO sleep possible?
-        //   tries += 1;
-        //   if (tries >= 30) {
-        //     return #err("Timeout waiting for PDS canister upgrade to complete");
-        //   };
-        // };
-
-        // Initialize an existing PDS canister
-        await* initialize(proposalData.canisterId, installOptions.initializeOptions);
+        // Update the PDS canister ID after successful initialization
+        updatePdsCanisterId(proposalData.canisterId);
+        #ok;
       };
     };
   };
@@ -106,7 +66,7 @@ module {
     daoPrincipal : Principal,
     pdsCanisterId : Principal,
     orchestratorFactory : () -> ICRC120.ICRC120,
-    installOptions : InstallAndInitializeOptions,
+    installOptions : InstallOptions,
   ) : async* Result.Result<Nat, Text> {
     try {
       let args = switch (installOptions.initArgs) {
@@ -122,11 +82,22 @@ module {
         args = args;
         stop = true;
         restart = true;
-        snapshot = true; /* Always snapshot for DAO operations */
+        snapshot = false;
         timeout = 600_000_000_000; /* 10 minutes for DAO operations */
-        mode = #install;
+        mode = switch (installOptions.kind) {
+          case (#install) #install;
+          case (#reinstall) #reinstall;
+          case (#upgrade) #upgrade(
+            ?{
+              wasm_memory_persistence = ?#keep;
+              skip_pre_upgrade = ?true;
+            }
+          );
+        };
         parameters = null;
       }];
+
+      Debug.print("Upgrade options: " # debug_show (upgradeOptions));
 
       let results = await orchestratorFactory().icrc120_upgrade_to(daoPrincipal, upgradeOptions);
       switch (results[0]) {
@@ -138,32 +109,6 @@ module {
       };
     } catch (error) {
       let errorMsg = "Error installing PDS canister: " # Error.message(error);
-      Debug.print(errorMsg);
-      #err(errorMsg);
-    };
-  };
-
-  func initialize(pdsCanisterId : Principal, initOptions : InitializeOptions) : async* Result.Result<(), Text> {
-    try {
-      let pdsActor = actor (Principal.toText(pdsCanisterId)) : PdsInterface.Actor;
-
-      let initRequest : PdsInterface.InitializeRequest = {
-        hostname = initOptions.hostname;
-        serviceSubdomain = initOptions.serviceSubdomain;
-        plc = #id(initOptions.plcIdentifier);
-      };
-
-      let initResult = await pdsActor.initialize(initRequest);
-      switch (initResult) {
-        case (#ok(_)) {
-          #ok;
-        };
-        case (#err(error)) {
-          #err("Failed to initialize PDS canister: " # error);
-        };
-      };
-    } catch (error) {
-      let errorMsg = "Error initializing PDS canister: " # Error.message(error);
       Debug.print(errorMsg);
       #err(errorMsg);
     };
@@ -184,27 +129,22 @@ module {
       case (#set) {
         // No additional validation needed for simple set operation
       };
-      case (#initialize(initOptions)) {
-        if (Text.size(initOptions.hostname) == 0) {
-          List.add(errors, "Hostname cannot be empty for initialize operation");
-        };
-        if (Text.size(initOptions.plcIdentifier) == 0) {
-          List.add(errors, "PLC identifier cannot be empty for initialize operation");
-        };
-      };
-      case (#installAndInitialize(installOptions)) {
+      case (#install(installOptions)) {
         if (installOptions.wasmHash.size() == 0) {
           List.add(errors, "WASM hash cannot be empty for install operation");
         };
-        if (Text.size(installOptions.initializeOptions.hostname) == 0) {
-          List.add(errors, "Hostname cannot be empty for install and initialize operation");
-        };
-        if (Text.size(installOptions.initializeOptions.plcIdentifier) == 0) {
-          List.add(errors, "PLC identifier cannot be empty for install and initialize operation");
+        switch (installOptions.initArgs) {
+          case (#raw(blob)) switch (Candid.fromBytes(blob.vals())) {
+            case (null) List.add(errors, "Invalid Candid bytes for initialization arguments.");
+            case (?_) {}; // TODO validate current schema?
+          };
+          case (#candidText(text)) switch (Candid.fromText(text)) {
+            case (#err(err)) List.add(errors, "Invalid Candid text for initialization arguments. Error: " # err);
+            case (#ok(_)) {}; // TODO validate current schema?
+          };
         };
       };
     };
-
     if (List.size(errors) > 0) {
       #err(List.toArray(errors));
     } else {
