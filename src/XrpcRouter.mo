@@ -601,8 +601,6 @@ module {
         );
       };
 
-      Debug.print("Generated CAR file: " # debug_show (carFile));
-
       let carBlob = Blob.fromArray(CAR.toBytes(carFile));
 
       routeContext.buildResponse(

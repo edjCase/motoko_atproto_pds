@@ -2,6 +2,7 @@ import Principal "mo:core@1/Principal";
 import Proposal "mo:dao-proposal-engine@2/Proposal";
 import PostToBlueskyProposal "./Proposals/PostToBlueskyProposal";
 import SetPdsCanisterProposal "./Proposals/SetPdsCanisterProposal";
+import InstallPdsProposal "./Proposals/InstallPdsProposal";
 
 module {
 
@@ -10,6 +11,7 @@ module {
   public type ProposalKind = {
     #postToBluesky : PostToBlueskyProposal.ProposalData;
     #setPdsCanister : SetPdsCanisterProposal.ProposalData;
+    #installPds : InstallPdsProposal.ProposalData;
   };
 
   public type MemberData = {
@@ -30,6 +32,12 @@ module {
     totalVotingPower : Nat;
     timeStart : Int;
     timeEnd : ?Int;
+  };
+
+  public type AddWasmChunkRequest = {
+    wasmHash : Blob;
+    index : Nat;
+    chunk : Blob;
   };
 
   public type Actor = actor {

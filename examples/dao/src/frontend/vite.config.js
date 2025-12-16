@@ -31,7 +31,7 @@ export default defineConfig({
     environment("all", { prefix: "CANISTER_" }),
     environment("all", { prefix: "DFX_" }),
     icpBindgen({
-      didFile: '../declarations/dao_backend/dao_backend.did',
+      didFile: '../declarations/backend/backend.did',
       outDir: './src/bindings',
     }),
   ],

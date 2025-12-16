@@ -18,6 +18,6 @@ fi
 
 memberId=$2
 
-echo "Adding member '${memberId}' to the dao canister ${canister_id}..."
+echo "Removing member '${memberId}' from the dao canister ${canister_id}..."
 
-dfx canister call ${canister_id} addMember "(principal \"${memberId}\")" --network "${network}"
+dfx canister call ${canister_id} removeMember "(principal \"${memberId}\")" --network "${network}"

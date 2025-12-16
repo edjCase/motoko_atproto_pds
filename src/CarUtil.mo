@@ -14,7 +14,6 @@ import Blob "mo:core@1/Blob";
 import Int "mo:core@1/Int";
 import Repository "mo:atproto@0/Repository";
 import List "mo:core@1/List";
-import Debug "mo:core@1/Debug";
 import DagCborBuilder "mo:atproto@0/DagCborBuilder";
 
 module {
@@ -120,7 +119,6 @@ module {
         case (#ok(bytes)) bytes;
         case (#err(e)) return #err("Failed to encode commit to CBOR: " # debug_show (e));
       };
-      Debug.print("Commit CID: " # CID.toText(cid));
       let block : CAR.Block = {
         cid = cid;
         data = Blob.fromArray(cborBytes);
@@ -134,7 +132,6 @@ module {
         case (#ok(bytes)) bytes;
         case (#err(e)) return #err("Failed to encode record to CBOR: " # debug_show (e));
       };
-      Debug.print("Record CID: " # CID.toText(cid));
       let block : CAR.Block = {
         cid = cid;
         data = Blob.fromArray(cborBytes);
@@ -149,7 +146,6 @@ module {
         case (#ok(bytes)) bytes;
         case (#err(e)) return #err("Failed to encode node to CBOR: " # debug_show (e));
       };
-      Debug.print("Node CID: " # CID.toText(cid));
       let block : CAR.Block = {
         cid = cid;
         data = Blob.fromArray(cborBytes);

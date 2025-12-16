@@ -31,6 +31,7 @@ type TreeEntry =
    subtreeCID: opt CID;
    valueCID: CID;
  };
+type Time = int;
 type TIDText = text;
 type StreamingToken = blob;
 type StreamingStrategy = variant {Callback: CallbackStreamingStrategy;};
@@ -41,6 +42,12 @@ type StreamingCallbackResponse =
  };
 type StreamingCallback = func (StreamingToken) ->
                           (StreamingCallbackResponse) query;
+type ServerInfo = 
+ record {
+   hostname: text;
+   plcIdentifier: text;
+   serviceSubdomain: opt text;
+ };
 type Result_7 = 
  variant {
    err: text;
@@ -146,6 +153,7 @@ type Pds =
    deleteRecord: (request: DeleteRecordRequest) -> (Result_6);
    exportRepoData: () -> (Result_5) query;
    getDeployer: () -> (principal) query;
+   getInitializationStatus: () -> (InitializationStatus) query;
    getLogs: (limit: nat, offset: nat) -> (vec LogEntry) query;
    getOwner: () -> (principal) query;
    getRecord: (request: GetRecordRequest) -> (Result_4) query;
@@ -153,10 +161,11 @@ type Pds =
     (RawQueryHttpResponse) query;
    http_request_update: (request: RawUpdateHttpRequest) ->
     (RawUpdateHttpResponse);
-   initialize: (request: InitializeRequest) -> (Result);
+   icrc120_upgrade_finished: () -> (ICRC120UpgradeFinishedResult);
    listRecords: (request: ListRecordsRequest) -> (Result_3) query;
    postToBluesky: (message: text) -> (Result_2);
    putRecord: (request: PutRecordRequest) -> (Result_1);
+   reinitialize: (requestOrNull: opt InitializeRequest) -> (Result);
    setOwner: (newOwner: principal) -> (Result);
    updatePlcDid: (request: UpdatePlcRequest) -> (Result);
  };
@@ -201,11 +210,42 @@ type ListRecord =
    rkey: text;
    value: Value__1;
  };
+type InstallArgs = 
+ record {
+   hostname: text;
+   owner: opt principal;
+   plcKind: PlcKind;
+   serviceSubdomain: opt text;
+ };
 type InitializeRequest = 
  record {
    hostname: text;
-   plc: PlcKind;
+   plcKind: PlcKind;
    serviceSubdomain: opt text;
+ };
+type InitializationStatus = 
+ variant {
+   initialized:
+    record {
+      endTime: Time;
+      info: ServerInfo;
+      request: InitializeRequest;
+      startTime: Time;
+    };
+   initializing: record {
+                   request: InitializeRequest;
+                   startTime: Time;
+                 };
+   notInitialized: record {previousAttempt: opt FailedAttempt;};
+ };
+type ICRC120UpgradeFinishedResult = 
+ variant {
+   Failed: record {
+             nat;
+             text;
+           };
+   InProgress: nat;
+   Success: nat;
  };
 type Header = 
  record {
@@ -232,6 +272,13 @@ type GetRecordRequest =
    cid: opt CIDText;
    collection: text;
    rkey: text;
+ };
+type FailedAttempt = 
+ record {
+   endTime: Time;
+   errorMessage: text;
+   request: InitializeRequest;
+   startTime: Time;
  };
 type ExportData = 
  record {
@@ -332,4 +379,4 @@ type CID =
    v0: CID__1;
    v1: CID__2;
  };
-service : (initData: record {owner: opt principal;}) -> Pds
+service : (installArgs: InstallArgs) -> Pds
