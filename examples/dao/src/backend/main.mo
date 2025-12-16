@@ -7,6 +7,7 @@ import Array "mo:core@1/Array";
 import DaoInterface "./DaoInterface";
 import PostToBlueskyProposal "./Proposals/PostToBlueskyProposal";
 import SetPdsCanisterProposal "./Proposals/SetPdsCanisterProposal";
+import InstallPdsProposal "./Proposals/InstallPdsProposal";
 import BTree "mo:stableheapbtreemap@1/BTree";
 import PureMap "mo:core@1/pure/Map";
 import Iter "mo:core@1/Iter";
@@ -106,6 +107,14 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
       case (#setPdsCanister(setPdsProposal)) {
         await* SetPdsCanisterProposal.onAdopt(daoPrincipal, setPdsProposal, orchestrator.factory, updatePdsCanisterId);
       };
+      case (#installPds(installPdsProposal)) {
+        await* InstallPdsProposal.onAdopt(
+          daoPrincipal,
+          installPdsProposal,
+          orchestrator.factory,
+          updatePdsCanisterId,
+        );
+      };
     };
   };
 
@@ -120,6 +129,9 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
       };
       case (#setPdsCanister(setPdsProposal)) {
         SetPdsCanisterProposal.validate(setPdsProposal);
+      };
+      case (#installPds(installPdsProposal)) {
+        InstallPdsProposal.validate(installPdsProposal);
       };
     };
   };
@@ -291,29 +303,33 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
       };
       case (#setPdsCanister(setPdsProposal)) {
         let canisterIdText = "Canister ID: " # Principal.toText(setPdsProposal.canisterId);
-        let (kindText, kindDetails) = switch (setPdsProposal.kind) {
-          case (#set) {
-            ("Set PDS Canister", canisterIdText);
+        ("Set PDS Canister", canisterIdText);
+      };
+      case (#installPds(installPdsProposal)) {
+        let wasmHashText = debug_show (installPdsProposal.wasmHash);
+        let initArgsText = switch (installPdsProposal.initArgs) {
+          case (#candidText(text)) "Candid Text:\n    " # text;
+          case (#raw(blob)) "Raw (hex): " # debug_show (blob);
+        };
+        let details = "  WASM Hash: " # wasmHashText # "\n" #
+        "  Init Args - " # initArgsText # "\n\n";
+        switch (installPdsProposal.kind) {
+          case (#install({ kind })) {
+            let installDetails = switch (kind) {
+              case (#newCanister(newCanister)) "Install PDS WASM in new canister with Settings:\n" # debug_show (newCanister);
+              case (#existingCanister(canisterId)) "Install PDS WASM in canister: " # Principal.toText(canisterId);
+            };
+            ("Install PDS", installDetails # "\n" # details);
           };
-          case (#install(opts)) {
-            let kind = switch (opts.kind) {
-              case (#install) "Install";
-              case (#reinstall) "Reinstall";
-              case (#upgrade) "Upgrade";
-            };
-            let wasmHashText = debug_show (opts.wasmHash);
-            let initArgsText = switch (opts.initArgs) {
-              case (#candidText(text)) "Candid Text:\n    " # text;
-              case (#raw(blob)) "Raw (hex): " # debug_show (blob);
-            };
-            let details = canisterIdText # "\n\nInstallation:\n" #
-            "  Kind: " # kind # "\n" #
-            "  WASM Hash: " # wasmHashText # "\n" #
-            "  Init Args - " # initArgsText # "\n\n";
-            ("Install PDS Canister", details);
+          case (#reinstall({ canisterId })) {
+            let reinstallDetails = "Reinstall PDS WASM in canister: " # Principal.toText(canisterId);
+            ("Reinstall PDS", reinstallDetails # "\n" # details);
+          };
+          case (#upgrade({ canisterId })) {
+            let upgradeDetails = "Upgrade PDS WASM in canister: " # Principal.toText(canisterId);
+            ("Upgrade PDS", upgradeDetails # "\n" # details);
           };
         };
-        (kindText, kindDetails);
       };
     };
 

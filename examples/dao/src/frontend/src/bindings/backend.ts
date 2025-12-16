@@ -64,15 +64,82 @@ export interface ICRC16Property {
     immutable: boolean;
 }
 export type ProposalKind = {
+    __kind__: "installPds";
+    installPds: ProposalData;
+} | {
     __kind__: "setPdsCanister";
-    setPdsCanister: ProposalData__1;
+    setPdsCanister: ProposalData__2;
 } | {
     __kind__: "postToBluesky";
-    postToBluesky: ProposalData;
+    postToBluesky: ProposalData__1;
 };
 export interface ProposalData {
-    message: string;
+    initArgs: {
+        __kind__: "raw";
+        raw: Uint8Array;
+    } | {
+        __kind__: "candidText";
+        candidText: string;
+    };
+    wasmHash: Uint8Array;
+    kind: {
+        __kind__: "reinstall";
+        reinstall: {
+            canisterId: Principal;
+        };
+    } | {
+        __kind__: "upgrade";
+        upgrade: {
+            skipPreUpgrade: boolean;
+            wasmMemoryPersistence: Variant_keep_replace;
+            canisterId: Principal;
+        };
+    } | {
+        __kind__: "install";
+        install: {
+            kind: {
+                __kind__: "existingCanister";
+                existingCanister: Principal;
+            } | {
+                __kind__: "newCanister";
+                newCanister: {
+                    initialCycleBalance: bigint;
+                    settings: NewCanisterSettings;
+                };
+            };
+        };
+    };
 }
+export type LogVisibility = {
+    __kind__: "controllers";
+    controllers: null;
+} | {
+    __kind__: "allowedViewers";
+    allowedViewers: Array<Principal>;
+} | {
+    __kind__: "public";
+    public: null;
+};
+export interface GetEventsFilter {
+    event_types?: Array<OrchestrationEventType>;
+    end_time?: bigint;
+    start_time?: bigint;
+    canister?: Principal;
+}
+export interface OrchestrationEvent {
+    id: bigint;
+    canister_id: Principal;
+    timestamp: bigint;
+    details: ICRC16;
+    event_type: OrchestrationEventType;
+}
+export type Result_1 = {
+    __kind__: "ok";
+    ok: bigint;
+} | {
+    __kind__: "err";
+    err: string;
+};
 export interface DaoInterface {
     addMember(id: Principal): Promise<Result>;
     addWasmChunk(request: AddWasmChunkRequest): Promise<Result>;
@@ -92,37 +159,6 @@ export interface DaoInterface {
     }): Promise<Array<OrchestrationEvent>>;
     removeMember(id: Principal): Promise<Result>;
     vote(proposalId: bigint, vote: boolean): Promise<Result>;
-}
-export interface InstallOptions {
-    initArgs: {
-        __kind__: "raw";
-        raw: Uint8Array;
-    } | {
-        __kind__: "candidText";
-        candidText: string;
-    };
-    wasmHash: Uint8Array;
-    kind: Variant_reinstall_upgrade_install;
-}
-export interface OrchestrationEvent {
-    id: bigint;
-    canister_id: Principal;
-    timestamp: bigint;
-    details: ICRC16;
-    event_type: OrchestrationEventType;
-}
-export type Result_1 = {
-    __kind__: "ok";
-    ok: bigint;
-} | {
-    __kind__: "err";
-    err: string;
-};
-export interface GetEventsFilter {
-    event_types?: Array<OrchestrationEventType>;
-    end_time?: bigint;
-    start_time?: bigint;
-    canister?: Principal;
 }
 export type ProposalStatus = {
     __kind__: "failedToExecute";
@@ -161,14 +197,7 @@ export interface ProposalDetail {
     timeEnd?: bigint;
 }
 export interface ProposalData__1 {
-    kind: {
-        __kind__: "set";
-        set: null;
-    } | {
-        __kind__: "install";
-        install: InstallOptions;
-    };
-    canisterId: Principal;
+    message: string;
 }
 export type Result = {
     __kind__: "ok";
@@ -263,6 +292,19 @@ export interface Vote {
     votingPower: bigint;
     choice?: boolean;
 }
+export interface ProposalData__2 {
+    canisterId: Principal;
+}
+export interface NewCanisterSettings {
+    controllers?: Array<Principal>;
+    freezingThreshold?: bigint;
+    wasmMemoryLimit?: bigint;
+    logVisibility?: LogVisibility;
+    memoryAllocation?: bigint;
+    computeAllocation?: bigint;
+    wasmMemoryThreshold?: bigint;
+    reservedCyclesLimit?: bigint;
+}
 export enum OrchestrationEventType {
     upgrade_initiated = "upgrade_initiated",
     snapshot_requested = "snapshot_requested",
@@ -275,14 +317,13 @@ export enum OrchestrationEventType {
     snapshot_created = "snapshot_created",
     canister_stopped = "canister_stopped"
 }
-export enum Variant_reinstall_upgrade_install {
-    reinstall = "reinstall",
-    upgrade = "upgrade",
-    install = "install"
+export enum Variant_keep_replace {
+    keep = "keep",
+    replace = "replace"
 }
 export interface backendInterface extends DaoInterface {
 }
-import type { GetEventsFilter as _GetEventsFilter, ICRC16 as _ICRC16, ICRC16Property as _ICRC16Property, InstallOptions as _InstallOptions, Member as _Member, OrchestrationEvent as _OrchestrationEvent, OrchestrationEventType as _OrchestrationEventType, PagedResult as _PagedResult, ProposalData as _ProposalData, ProposalData__1 as _ProposalData__1, ProposalDetail as _ProposalDetail, ProposalKind as _ProposalKind, ProposalStatus as _ProposalStatus, Result as _Result, Result_1 as _Result_1, Time as _Time, Vote as _Vote } from "./declarations/backend.did.d.ts";
+import type { GetEventsFilter as _GetEventsFilter, ICRC16 as _ICRC16, ICRC16Property as _ICRC16Property, LogVisibility as _LogVisibility, Member as _Member, NewCanisterSettings as _NewCanisterSettings, OrchestrationEvent as _OrchestrationEvent, OrchestrationEventType as _OrchestrationEventType, PagedResult as _PagedResult, ProposalData as _ProposalData, ProposalData__1 as _ProposalData__1, ProposalData__2 as _ProposalData__2, ProposalDetail as _ProposalDetail, ProposalKind as _ProposalKind, ProposalStatus as _ProposalStatus, Result as _Result, Result_1 as _Result_1, Time as _Time, Vote as _Vote } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>){}
     async addMember(arg0: Principal): Promise<Result> {
@@ -295,7 +336,7 @@ export class Backend implements backendInterface {
     }
     async createProposal(arg0: ProposalKind): Promise<Result_1> {
         const result = await this.actor.createProposal(to_candid_ProposalKind_n3(arg0));
-        return from_candid_Result_1_n12(result);
+        return from_candid_Result_1_n18(result);
     }
     async finalizeWasmChunks(arg0: Uint8Array): Promise<Result> {
         const result = await this.actor.finalizeWasmChunks(arg0);
@@ -303,7 +344,7 @@ export class Backend implements backendInterface {
     }
     async getMember(arg0: Principal): Promise<Member | null> {
         const result = await this.actor.getMember(arg0);
-        return from_candid_opt_n14(result);
+        return from_candid_opt_n20(result);
     }
     async getMembers(): Promise<Array<Member>> {
         const result = await this.actor.getMembers();
@@ -311,19 +352,19 @@ export class Backend implements backendInterface {
     }
     async getPdsCanisterId(): Promise<Principal | null> {
         const result = await this.actor.getPdsCanisterId();
-        return from_candid_opt_n15(result);
+        return from_candid_opt_n21(result);
     }
     async getProposal(arg0: bigint): Promise<ProposalDetail | null> {
         const result = await this.actor.getProposal(arg0);
-        return from_candid_opt_n16(result);
+        return from_candid_opt_n22(result);
     }
     async getProposals(arg0: bigint, arg1: bigint): Promise<PagedResult> {
         const result = await this.actor.getProposals(arg0, arg1);
-        return from_candid_PagedResult_n26(result);
+        return from_candid_PagedResult_n32(result);
     }
     async getVote(arg0: bigint, arg1: Principal): Promise<Vote | null> {
         const result = await this.actor.getVote(arg0, arg1);
-        return from_candid_opt_n29(result);
+        return from_candid_opt_n35(result);
     }
     async getWasmHashes(): Promise<Array<string>> {
         const result = await this.actor.getWasmHashes();
@@ -334,8 +375,8 @@ export class Backend implements backendInterface {
         take?: bigint;
         filter?: GetEventsFilter;
     }): Promise<Array<OrchestrationEvent>> {
-        const result = await this.actor.icrc120_get_events(to_candid_record_n32(arg0));
-        return from_candid_vec_n38(result);
+        const result = await this.actor.icrc120_get_events(to_candid_record_n38(arg0));
+        return from_candid_vec_n44(result);
     }
     async removeMember(arg0: Principal): Promise<Result> {
         const result = await this.actor.removeMember(arg0);
@@ -346,58 +387,58 @@ export class Backend implements backendInterface {
         return from_candid_Result_n1(result);
     }
 }
-function from_candid_ICRC16Property_n50(value: _ICRC16Property): ICRC16Property {
-    return from_candid_record_n51(value);
+function from_candid_ICRC16Property_n56(value: _ICRC16Property): ICRC16Property {
+    return from_candid_record_n57(value);
 }
-function from_candid_ICRC16_n41(value: _ICRC16): ICRC16 {
-    return from_candid_variant_n42(value);
+function from_candid_ICRC16_n47(value: _ICRC16): ICRC16 {
+    return from_candid_variant_n48(value);
 }
-function from_candid_OrchestrationEventType_n52(value: _OrchestrationEventType): OrchestrationEventType {
-    return from_candid_variant_n53(value);
+function from_candid_OrchestrationEventType_n58(value: _OrchestrationEventType): OrchestrationEventType {
+    return from_candid_variant_n59(value);
 }
-function from_candid_OrchestrationEvent_n39(value: _OrchestrationEvent): OrchestrationEvent {
-    return from_candid_record_n40(value);
+function from_candid_OrchestrationEvent_n45(value: _OrchestrationEvent): OrchestrationEvent {
+    return from_candid_record_n46(value);
 }
-function from_candid_PagedResult_n26(value: _PagedResult): PagedResult {
-    return from_candid_record_n27(value);
+function from_candid_PagedResult_n32(value: _PagedResult): PagedResult {
+    return from_candid_record_n33(value);
 }
-function from_candid_ProposalDetail_n17(value: _ProposalDetail): ProposalDetail {
-    return from_candid_record_n18(value);
+function from_candid_ProposalDetail_n23(value: _ProposalDetail): ProposalDetail {
+    return from_candid_record_n24(value);
 }
-function from_candid_ProposalStatus_n19(value: _ProposalStatus): ProposalStatus {
-    return from_candid_variant_n20(value);
+function from_candid_ProposalStatus_n25(value: _ProposalStatus): ProposalStatus {
+    return from_candid_variant_n26(value);
 }
-function from_candid_Result_1_n12(value: _Result_1): Result_1 {
-    return from_candid_variant_n13(value);
+function from_candid_Result_1_n18(value: _Result_1): Result_1 {
+    return from_candid_variant_n19(value);
 }
 function from_candid_Result_n1(value: _Result): Result {
     return from_candid_variant_n2(value);
 }
-function from_candid_Vote_n30(value: _Vote): Vote {
-    return from_candid_record_n31(value);
+function from_candid_Vote_n36(value: _Vote): Vote {
+    return from_candid_record_n37(value);
 }
-function from_candid_opt_n14(value: [] | [_Member]): Member | null {
+function from_candid_opt_n20(value: [] | [_Member]): Member | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n15(value: [] | [Principal]): Principal | null {
+function from_candid_opt_n21(value: [] | [Principal]): Principal | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n16(value: [] | [_ProposalDetail]): ProposalDetail | null {
-    return value.length === 0 ? null : from_candid_ProposalDetail_n17(value[0]);
+function from_candid_opt_n22(value: [] | [_ProposalDetail]): ProposalDetail | null {
+    return value.length === 0 ? null : from_candid_ProposalDetail_n23(value[0]);
 }
-function from_candid_opt_n22(value: [] | [boolean]): boolean | null {
+function from_candid_opt_n28(value: [] | [boolean]): boolean | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n25(value: [] | [bigint]): bigint | null {
+function from_candid_opt_n31(value: [] | [bigint]): bigint | null {
     return value.length === 0 ? null : value[0];
 }
-function from_candid_opt_n29(value: [] | [_Vote]): Vote | null {
-    return value.length === 0 ? null : from_candid_Vote_n30(value[0]);
+function from_candid_opt_n35(value: [] | [_Vote]): Vote | null {
+    return value.length === 0 ? null : from_candid_Vote_n36(value[0]);
 }
-function from_candid_opt_n46(value: [] | [_ICRC16]): ICRC16 | null {
-    return value.length === 0 ? null : from_candid_ICRC16_n41(value[0]);
+function from_candid_opt_n52(value: [] | [_ICRC16]): ICRC16 | null {
+    return value.length === 0 ? null : from_candid_ICRC16_n47(value[0]);
 }
-function from_candid_record_n18(value: {
+function from_candid_record_n24(value: {
     id: bigint;
     status: _ProposalStatus;
     title: string;
@@ -420,17 +461,17 @@ function from_candid_record_n18(value: {
 } {
     return {
         id: value.id,
-        status: from_candid_ProposalStatus_n19(value.status),
+        status: from_candid_ProposalStatus_n25(value.status),
         title: value.title,
         votesAgainst: value.votesAgainst,
         timeStart: value.timeStart,
         votesFor: value.votesFor,
         totalVotingPower: value.totalVotingPower,
         description: value.description,
-        timeEnd: record_opt_to_undefined(from_candid_opt_n25(value.timeEnd))
+        timeEnd: record_opt_to_undefined(from_candid_opt_n31(value.timeEnd))
     };
 }
-function from_candid_record_n21(value: {
+function from_candid_record_n27(value: {
     executingTime: _Time;
     error: string;
     failedTime: _Time;
@@ -445,10 +486,10 @@ function from_candid_record_n21(value: {
         executingTime: value.executingTime,
         error: value.error,
         failedTime: value.failedTime,
-        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice))
+        choice: record_opt_to_undefined(from_candid_opt_n28(value.choice))
     };
 }
-function from_candid_record_n23(value: {
+function from_candid_record_n29(value: {
     executingTime: _Time;
     choice: [] | [boolean];
 }): {
@@ -457,10 +498,10 @@ function from_candid_record_n23(value: {
 } {
     return {
         executingTime: value.executingTime,
-        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice))
+        choice: record_opt_to_undefined(from_candid_opt_n28(value.choice))
     };
 }
-function from_candid_record_n24(value: {
+function from_candid_record_n30(value: {
     executingTime: _Time;
     choice: [] | [boolean];
     executedTime: _Time;
@@ -471,11 +512,11 @@ function from_candid_record_n24(value: {
 } {
     return {
         executingTime: value.executingTime,
-        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice)),
+        choice: record_opt_to_undefined(from_candid_opt_n28(value.choice)),
         executedTime: value.executedTime
     };
 }
-function from_candid_record_n27(value: {
+function from_candid_record_n33(value: {
     data: Array<_ProposalDetail>;
     count: bigint;
     totalCount: bigint;
@@ -487,13 +528,13 @@ function from_candid_record_n27(value: {
     offset: bigint;
 } {
     return {
-        data: from_candid_vec_n28(value.data),
+        data: from_candid_vec_n34(value.data),
         count: value.count,
         totalCount: value.totalCount,
         offset: value.offset
     };
 }
-function from_candid_record_n31(value: {
+function from_candid_record_n37(value: {
     votingPower: bigint;
     choice: [] | [boolean];
 }): {
@@ -502,10 +543,10 @@ function from_candid_record_n31(value: {
 } {
     return {
         votingPower: value.votingPower,
-        choice: record_opt_to_undefined(from_candid_opt_n22(value.choice))
+        choice: record_opt_to_undefined(from_candid_opt_n28(value.choice))
     };
 }
-function from_candid_record_n40(value: {
+function from_candid_record_n46(value: {
     id: bigint;
     canister_id: Principal;
     timestamp: bigint;
@@ -522,11 +563,11 @@ function from_candid_record_n40(value: {
         id: value.id,
         canister_id: value.canister_id,
         timestamp: value.timestamp,
-        details: from_candid_ICRC16_n41(value.details),
-        event_type: from_candid_OrchestrationEventType_n52(value.event_type)
+        details: from_candid_ICRC16_n47(value.details),
+        event_type: from_candid_OrchestrationEventType_n58(value.event_type)
     };
 }
-function from_candid_record_n51(value: {
+function from_candid_record_n57(value: {
     value: _ICRC16;
     name: string;
     immutable: boolean;
@@ -536,24 +577,24 @@ function from_candid_record_n51(value: {
     immutable: boolean;
 } {
     return {
-        value: from_candid_ICRC16_n41(value.value),
+        value: from_candid_ICRC16_n47(value.value),
         name: value.name,
         immutable: value.immutable
     };
 }
-function from_candid_tuple_n44(value: [string, _ICRC16]): [string, ICRC16] {
+function from_candid_tuple_n50(value: [string, _ICRC16]): [string, ICRC16] {
     return [
         value[0],
-        from_candid_ICRC16_n41(value[1])
+        from_candid_ICRC16_n47(value[1])
     ];
 }
-function from_candid_tuple_n48(value: [_ICRC16, _ICRC16]): [ICRC16, ICRC16] {
+function from_candid_tuple_n54(value: [_ICRC16, _ICRC16]): [ICRC16, ICRC16] {
     return [
-        from_candid_ICRC16_n41(value[0]),
-        from_candid_ICRC16_n41(value[1])
+        from_candid_ICRC16_n47(value[0]),
+        from_candid_ICRC16_n47(value[1])
     ];
 }
-function from_candid_variant_n13(value: {
+function from_candid_variant_n19(value: {
     ok: bigint;
 } | {
     err: string;
@@ -591,7 +632,7 @@ function from_candid_variant_n2(value: {
         err: value.err
     } : value;
 }
-function from_candid_variant_n20(value: {
+function from_candid_variant_n26(value: {
     failedToExecute: {
         executingTime: _Time;
         error: string;
@@ -638,19 +679,19 @@ function from_candid_variant_n20(value: {
 } {
     return "failedToExecute" in value ? {
         __kind__: "failedToExecute",
-        failedToExecute: from_candid_record_n21(value.failedToExecute)
+        failedToExecute: from_candid_record_n27(value.failedToExecute)
     } : "open" in value ? {
         __kind__: "open",
         open: value.open
     } : "executing" in value ? {
         __kind__: "executing",
-        executing: from_candid_record_n23(value.executing)
+        executing: from_candid_record_n29(value.executing)
     } : "executed" in value ? {
         __kind__: "executed",
-        executed: from_candid_record_n24(value.executed)
+        executed: from_candid_record_n30(value.executed)
     } : value;
 }
-function from_candid_variant_n42(value: {
+function from_candid_variant_n48(value: {
     Int: bigint;
 } | {
     Map: Array<[string, _ICRC16]>;
@@ -776,13 +817,13 @@ function from_candid_variant_n42(value: {
         Int: value.Int
     } : "Map" in value ? {
         __kind__: "Map",
-        Map: from_candid_vec_n43(value.Map)
+        Map: from_candid_vec_n49(value.Map)
     } : "Nat" in value ? {
         __kind__: "Nat",
         Nat: value.Nat
     } : "Set" in value ? {
         __kind__: "Set",
-        Set: from_candid_vec_n45(value.Set)
+        Set: from_candid_vec_n51(value.Set)
     } : "Nat16" in value ? {
         __kind__: "Nat16",
         Nat16: value.Nat16
@@ -824,7 +865,7 @@ function from_candid_variant_n42(value: {
         Int64: value.Int64
     } : "Option" in value ? {
         __kind__: "Option",
-        Option: from_candid_opt_n46(value.Option)
+        Option: from_candid_opt_n52(value.Option)
     } : "Floats" in value ? {
         __kind__: "Floats",
         Floats: value.Floats
@@ -836,16 +877,16 @@ function from_candid_variant_n42(value: {
         Principal: value.Principal
     } : "Array" in value ? {
         __kind__: "Array",
-        Array: from_candid_vec_n45(value.Array)
+        Array: from_candid_vec_n51(value.Array)
     } : "ValueMap" in value ? {
         __kind__: "ValueMap",
-        ValueMap: from_candid_vec_n47(value.ValueMap)
+        ValueMap: from_candid_vec_n53(value.ValueMap)
     } : "Class" in value ? {
         __kind__: "Class",
-        Class: from_candid_vec_n49(value.Class)
+        Class: from_candid_vec_n55(value.Class)
     } : value;
 }
-function from_candid_variant_n53(value: {
+function from_candid_variant_n59(value: {
     upgrade_initiated: null;
 } | {
     snapshot_requested: null;
@@ -868,40 +909,104 @@ function from_candid_variant_n53(value: {
 }): OrchestrationEventType {
     return "upgrade_initiated" in value ? OrchestrationEventType.upgrade_initiated : "snapshot_requested" in value ? OrchestrationEventType.snapshot_requested : "snapshot_revert_requested" in value ? OrchestrationEventType.snapshot_revert_requested : "snapshot_cleaned" in value ? OrchestrationEventType.snapshot_cleaned : "upgrade_finished" in value ? OrchestrationEventType.upgrade_finished : "configuration_changed" in value ? OrchestrationEventType.configuration_changed : "snapshot_reverted" in value ? OrchestrationEventType.snapshot_reverted : "canister_started" in value ? OrchestrationEventType.canister_started : "snapshot_created" in value ? OrchestrationEventType.snapshot_created : "canister_stopped" in value ? OrchestrationEventType.canister_stopped : value;
 }
-function from_candid_vec_n28(value: Array<_ProposalDetail>): Array<ProposalDetail> {
-    return value.map((x)=>from_candid_ProposalDetail_n17(x));
+function from_candid_vec_n34(value: Array<_ProposalDetail>): Array<ProposalDetail> {
+    return value.map((x)=>from_candid_ProposalDetail_n23(x));
 }
-function from_candid_vec_n38(value: Array<_OrchestrationEvent>): Array<OrchestrationEvent> {
-    return value.map((x)=>from_candid_OrchestrationEvent_n39(x));
+function from_candid_vec_n44(value: Array<_OrchestrationEvent>): Array<OrchestrationEvent> {
+    return value.map((x)=>from_candid_OrchestrationEvent_n45(x));
 }
-function from_candid_vec_n43(value: Array<[string, _ICRC16]>): Array<[string, ICRC16]> {
-    return value.map((x)=>from_candid_tuple_n44(x));
+function from_candid_vec_n49(value: Array<[string, _ICRC16]>): Array<[string, ICRC16]> {
+    return value.map((x)=>from_candid_tuple_n50(x));
 }
-function from_candid_vec_n45(value: Array<_ICRC16>): Array<ICRC16> {
-    return value.map((x)=>from_candid_ICRC16_n41(x));
+function from_candid_vec_n51(value: Array<_ICRC16>): Array<ICRC16> {
+    return value.map((x)=>from_candid_ICRC16_n47(x));
 }
-function from_candid_vec_n47(value: Array<[_ICRC16, _ICRC16]>): Array<[ICRC16, ICRC16]> {
-    return value.map((x)=>from_candid_tuple_n48(x));
+function from_candid_vec_n53(value: Array<[_ICRC16, _ICRC16]>): Array<[ICRC16, ICRC16]> {
+    return value.map((x)=>from_candid_tuple_n54(x));
 }
-function from_candid_vec_n49(value: Array<_ICRC16Property>): Array<ICRC16Property> {
-    return value.map((x)=>from_candid_ICRC16Property_n50(x));
+function from_candid_vec_n55(value: Array<_ICRC16Property>): Array<ICRC16Property> {
+    return value.map((x)=>from_candid_ICRC16Property_n56(x));
 }
-function to_candid_GetEventsFilter_n33(value: GetEventsFilter): _GetEventsFilter {
-    return to_candid_record_n34(value);
+function to_candid_GetEventsFilter_n39(value: GetEventsFilter): _GetEventsFilter {
+    return to_candid_record_n40(value);
 }
-function to_candid_InstallOptions_n8(value: InstallOptions): _InstallOptions {
-    return to_candid_record_n9(value);
+function to_candid_LogVisibility_n14(value: LogVisibility): _LogVisibility {
+    return to_candid_variant_n15(value);
 }
-function to_candid_OrchestrationEventType_n36(value: OrchestrationEventType): _OrchestrationEventType {
-    return to_candid_variant_n37(value);
+function to_candid_NewCanisterSettings_n12(value: NewCanisterSettings): _NewCanisterSettings {
+    return to_candid_record_n13(value);
 }
-function to_candid_ProposalData__1_n5(value: ProposalData__1): _ProposalData__1 {
+function to_candid_OrchestrationEventType_n42(value: OrchestrationEventType): _OrchestrationEventType {
+    return to_candid_variant_n43(value);
+}
+function to_candid_ProposalData_n5(value: ProposalData): _ProposalData {
     return to_candid_record_n6(value);
 }
 function to_candid_ProposalKind_n3(value: ProposalKind): _ProposalKind {
     return to_candid_variant_n4(value);
 }
-function to_candid_record_n32(value: {
+function to_candid_record_n11(value: {
+    initialCycleBalance: bigint;
+    settings: NewCanisterSettings;
+}): {
+    initialCycleBalance: bigint;
+    settings: _NewCanisterSettings;
+} {
+    return {
+        initialCycleBalance: value.initialCycleBalance,
+        settings: to_candid_NewCanisterSettings_n12(value.settings)
+    };
+}
+function to_candid_record_n13(value: {
+    controllers?: Array<Principal>;
+    freezingThreshold?: bigint;
+    wasmMemoryLimit?: bigint;
+    logVisibility?: LogVisibility;
+    memoryAllocation?: bigint;
+    computeAllocation?: bigint;
+    wasmMemoryThreshold?: bigint;
+    reservedCyclesLimit?: bigint;
+}): {
+    controllers: [] | [Array<Principal>];
+    freezingThreshold: [] | [bigint];
+    wasmMemoryLimit: [] | [bigint];
+    logVisibility: [] | [_LogVisibility];
+    memoryAllocation: [] | [bigint];
+    computeAllocation: [] | [bigint];
+    wasmMemoryThreshold: [] | [bigint];
+    reservedCyclesLimit: [] | [bigint];
+} {
+    return {
+        controllers: value.controllers ? candid_some(value.controllers) : candid_none(),
+        freezingThreshold: value.freezingThreshold ? candid_some(value.freezingThreshold) : candid_none(),
+        wasmMemoryLimit: value.wasmMemoryLimit ? candid_some(value.wasmMemoryLimit) : candid_none(),
+        logVisibility: value.logVisibility ? candid_some(to_candid_LogVisibility_n14(value.logVisibility)) : candid_none(),
+        memoryAllocation: value.memoryAllocation ? candid_some(value.memoryAllocation) : candid_none(),
+        computeAllocation: value.computeAllocation ? candid_some(value.computeAllocation) : candid_none(),
+        wasmMemoryThreshold: value.wasmMemoryThreshold ? candid_some(value.wasmMemoryThreshold) : candid_none(),
+        reservedCyclesLimit: value.reservedCyclesLimit ? candid_some(value.reservedCyclesLimit) : candid_none()
+    };
+}
+function to_candid_record_n16(value: {
+    skipPreUpgrade: boolean;
+    wasmMemoryPersistence: Variant_keep_replace;
+    canisterId: Principal;
+}): {
+    skipPreUpgrade: boolean;
+    wasmMemoryPersistence: {
+        keep: null;
+    } | {
+        replace: null;
+    };
+    canisterId: Principal;
+} {
+    return {
+        skipPreUpgrade: value.skipPreUpgrade,
+        wasmMemoryPersistence: to_candid_variant_n17(value.wasmMemoryPersistence),
+        canisterId: value.canisterId
+    };
+}
+function to_candid_record_n38(value: {
     prev?: Uint8Array;
     take?: bigint;
     filter?: GetEventsFilter;
@@ -913,10 +1018,10 @@ function to_candid_record_n32(value: {
     return {
         prev: value.prev ? candid_some(value.prev) : candid_none(),
         take: value.take ? candid_some(value.take) : candid_none(),
-        filter: value.filter ? candid_some(to_candid_GetEventsFilter_n33(value.filter)) : candid_none()
+        filter: value.filter ? candid_some(to_candid_GetEventsFilter_n39(value.filter)) : candid_none()
     };
 }
-function to_candid_record_n34(value: {
+function to_candid_record_n40(value: {
     event_types?: Array<OrchestrationEventType>;
     end_time?: bigint;
     start_time?: bigint;
@@ -928,35 +1033,13 @@ function to_candid_record_n34(value: {
     canister: [] | [Principal];
 } {
     return {
-        event_types: value.event_types ? candid_some(to_candid_vec_n35(value.event_types)) : candid_none(),
+        event_types: value.event_types ? candid_some(to_candid_vec_n41(value.event_types)) : candid_none(),
         end_time: value.end_time ? candid_some(value.end_time) : candid_none(),
         start_time: value.start_time ? candid_some(value.start_time) : candid_none(),
         canister: value.canister ? candid_some(value.canister) : candid_none()
     };
 }
 function to_candid_record_n6(value: {
-    kind: {
-        __kind__: "set";
-        set: null;
-    } | {
-        __kind__: "install";
-        install: InstallOptions;
-    };
-    canisterId: Principal;
-}): {
-    kind: {
-        set: null;
-    } | {
-        install: _InstallOptions;
-    };
-    canisterId: Principal;
-} {
-    return {
-        kind: to_candid_variant_n7(value.kind),
-        canisterId: value.canisterId
-    };
-}
-function to_candid_record_n9(value: {
     initArgs: {
         __kind__: "raw";
         raw: Uint8Array;
@@ -965,7 +1048,33 @@ function to_candid_record_n9(value: {
         candidText: string;
     };
     wasmHash: Uint8Array;
-    kind: Variant_reinstall_upgrade_install;
+    kind: {
+        __kind__: "reinstall";
+        reinstall: {
+            canisterId: Principal;
+        };
+    } | {
+        __kind__: "upgrade";
+        upgrade: {
+            skipPreUpgrade: boolean;
+            wasmMemoryPersistence: Variant_keep_replace;
+            canisterId: Principal;
+        };
+    } | {
+        __kind__: "install";
+        install: {
+            kind: {
+                __kind__: "existingCanister";
+                existingCanister: Principal;
+            } | {
+                __kind__: "newCanister";
+                newCanister: {
+                    initialCycleBalance: bigint;
+                    settings: NewCanisterSettings;
+                };
+            };
+        };
+    };
 }): {
     initArgs: {
         raw: Uint8Array;
@@ -974,52 +1083,146 @@ function to_candid_record_n9(value: {
     };
     wasmHash: Uint8Array;
     kind: {
-        reinstall: null;
+        reinstall: {
+            canisterId: Principal;
+        };
     } | {
-        upgrade: null;
+        upgrade: {
+            skipPreUpgrade: boolean;
+            wasmMemoryPersistence: {
+                keep: null;
+            } | {
+                replace: null;
+            };
+            canisterId: Principal;
+        };
     } | {
-        install: null;
+        install: {
+            kind: {
+                existingCanister: Principal;
+            } | {
+                newCanister: {
+                    initialCycleBalance: bigint;
+                    settings: _NewCanisterSettings;
+                };
+            };
+        };
     };
 } {
     return {
-        initArgs: to_candid_variant_n10(value.initArgs),
+        initArgs: to_candid_variant_n7(value.initArgs),
         wasmHash: value.wasmHash,
-        kind: to_candid_variant_n11(value.kind)
+        kind: to_candid_variant_n8(value.kind)
+    };
+}
+function to_candid_record_n9(value: {
+    kind: {
+        __kind__: "existingCanister";
+        existingCanister: Principal;
+    } | {
+        __kind__: "newCanister";
+        newCanister: {
+            initialCycleBalance: bigint;
+            settings: NewCanisterSettings;
+        };
+    };
+}): {
+    kind: {
+        existingCanister: Principal;
+    } | {
+        newCanister: {
+            initialCycleBalance: bigint;
+            settings: _NewCanisterSettings;
+        };
+    };
+} {
+    return {
+        kind: to_candid_variant_n10(value.kind)
     };
 }
 function to_candid_variant_n10(value: {
-    __kind__: "raw";
-    raw: Uint8Array;
+    __kind__: "existingCanister";
+    existingCanister: Principal;
 } | {
-    __kind__: "candidText";
-    candidText: string;
+    __kind__: "newCanister";
+    newCanister: {
+        initialCycleBalance: bigint;
+        settings: NewCanisterSettings;
+    };
 }): {
-    raw: Uint8Array;
+    existingCanister: Principal;
 } | {
-    candidText: string;
+    newCanister: {
+        initialCycleBalance: bigint;
+        settings: _NewCanisterSettings;
+    };
 } {
-    return value.__kind__ === "raw" ? {
-        raw: value.raw
-    } : value.__kind__ === "candidText" ? {
-        candidText: value.candidText
+    return value.__kind__ === "existingCanister" ? {
+        existingCanister: value.existingCanister
+    } : value.__kind__ === "newCanister" ? {
+        newCanister: to_candid_record_n11(value.newCanister)
     } : value;
 }
-function to_candid_variant_n11(value: Variant_reinstall_upgrade_install): {
-    reinstall: null;
+function to_candid_variant_n15(value: {
+    __kind__: "controllers";
+    controllers: null;
 } | {
-    upgrade: null;
+    __kind__: "allowedViewers";
+    allowedViewers: Array<Principal>;
 } | {
-    install: null;
+    __kind__: "public";
+    public: null;
+}): {
+    controllers: null;
+} | {
+    allowedViewers: Array<Principal>;
+} | {
+    public: null;
 } {
-    return value == Variant_reinstall_upgrade_install.reinstall ? {
-        reinstall: null
-    } : value == Variant_reinstall_upgrade_install.upgrade ? {
-        upgrade: null
-    } : value == Variant_reinstall_upgrade_install.install ? {
-        install: null
+    return value.__kind__ === "controllers" ? {
+        controllers: value.controllers
+    } : value.__kind__ === "allowedViewers" ? {
+        allowedViewers: value.allowedViewers
+    } : value.__kind__ === "public" ? {
+        public: value.public
     } : value;
 }
-function to_candid_variant_n37(value: OrchestrationEventType): {
+function to_candid_variant_n17(value: Variant_keep_replace): {
+    keep: null;
+} | {
+    replace: null;
+} {
+    return value == Variant_keep_replace.keep ? {
+        keep: null
+    } : value == Variant_keep_replace.replace ? {
+        replace: null
+    } : value;
+}
+function to_candid_variant_n4(value: {
+    __kind__: "installPds";
+    installPds: ProposalData;
+} | {
+    __kind__: "setPdsCanister";
+    setPdsCanister: ProposalData__2;
+} | {
+    __kind__: "postToBluesky";
+    postToBluesky: ProposalData__1;
+}): {
+    installPds: _ProposalData;
+} | {
+    setPdsCanister: _ProposalData__2;
+} | {
+    postToBluesky: _ProposalData__1;
+} {
+    return value.__kind__ === "installPds" ? {
+        installPds: to_candid_ProposalData_n5(value.installPds)
+    } : value.__kind__ === "setPdsCanister" ? {
+        setPdsCanister: value.setPdsCanister
+    } : value.__kind__ === "postToBluesky" ? {
+        postToBluesky: value.postToBluesky
+    } : value;
+}
+function to_candid_variant_n43(value: OrchestrationEventType): {
     upgrade_initiated: null;
 } | {
     snapshot_requested: null;
@@ -1062,42 +1265,85 @@ function to_candid_variant_n37(value: OrchestrationEventType): {
         canister_stopped: null
     } : value;
 }
-function to_candid_variant_n4(value: {
-    __kind__: "setPdsCanister";
-    setPdsCanister: ProposalData__1;
+function to_candid_variant_n7(value: {
+    __kind__: "raw";
+    raw: Uint8Array;
 } | {
-    __kind__: "postToBluesky";
-    postToBluesky: ProposalData;
+    __kind__: "candidText";
+    candidText: string;
 }): {
-    setPdsCanister: _ProposalData__1;
+    raw: Uint8Array;
 } | {
-    postToBluesky: _ProposalData;
+    candidText: string;
 } {
-    return value.__kind__ === "setPdsCanister" ? {
-        setPdsCanister: to_candid_ProposalData__1_n5(value.setPdsCanister)
-    } : value.__kind__ === "postToBluesky" ? {
-        postToBluesky: value.postToBluesky
+    return value.__kind__ === "raw" ? {
+        raw: value.raw
+    } : value.__kind__ === "candidText" ? {
+        candidText: value.candidText
     } : value;
 }
-function to_candid_variant_n7(value: {
-    __kind__: "set";
-    set: null;
+function to_candid_variant_n8(value: {
+    __kind__: "reinstall";
+    reinstall: {
+        canisterId: Principal;
+    };
+} | {
+    __kind__: "upgrade";
+    upgrade: {
+        skipPreUpgrade: boolean;
+        wasmMemoryPersistence: Variant_keep_replace;
+        canisterId: Principal;
+    };
 } | {
     __kind__: "install";
-    install: InstallOptions;
+    install: {
+        kind: {
+            __kind__: "existingCanister";
+            existingCanister: Principal;
+        } | {
+            __kind__: "newCanister";
+            newCanister: {
+                initialCycleBalance: bigint;
+                settings: NewCanisterSettings;
+            };
+        };
+    };
 }): {
-    set: null;
+    reinstall: {
+        canisterId: Principal;
+    };
 } | {
-    install: _InstallOptions;
+    upgrade: {
+        skipPreUpgrade: boolean;
+        wasmMemoryPersistence: {
+            keep: null;
+        } | {
+            replace: null;
+        };
+        canisterId: Principal;
+    };
+} | {
+    install: {
+        kind: {
+            existingCanister: Principal;
+        } | {
+            newCanister: {
+                initialCycleBalance: bigint;
+                settings: _NewCanisterSettings;
+            };
+        };
+    };
 } {
-    return value.__kind__ === "set" ? {
-        set: value.set
+    return value.__kind__ === "reinstall" ? {
+        reinstall: value.reinstall
+    } : value.__kind__ === "upgrade" ? {
+        upgrade: to_candid_record_n16(value.upgrade)
     } : value.__kind__ === "install" ? {
-        install: to_candid_InstallOptions_n8(value.install)
+        install: to_candid_record_n9(value.install)
     } : value;
 }
-function to_candid_vec_n35(value: Array<OrchestrationEventType>): Array<_OrchestrationEventType> {
-    return value.map((x)=>to_candid_OrchestrationEventType_n36(x));
+function to_candid_vec_n41(value: Array<OrchestrationEventType>): Array<_OrchestrationEventType> {
+    return value.map((x)=>to_candid_OrchestrationEventType_n42(x));
 }
 export interface CreateActorOptions {
     agent?: Agent;

@@ -1,6 +1,5 @@
 export const idlFactory = ({ IDL }) => {
   const Value__1 = IDL.Rec();
-  const Result = IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text });
   const PlcService = IDL.Record({
     'id' : IDL.Text,
     'endpoint' : IDL.Text,
@@ -10,6 +9,18 @@ export const idlFactory = ({ IDL }) => {
     'services' : IDL.Vec(PlcService),
     'alsoKnownAs' : IDL.Vec(IDL.Text),
   });
+  const PlcKind = IDL.Variant({
+    'id' : IDL.Text,
+    'car' : IDL.Vec(IDL.Nat8),
+    'new' : CreatePlcRequest,
+  });
+  const InstallArgs = IDL.Record({
+    'owner' : IDL.Opt(IDL.Principal),
+    'hostname' : IDL.Text,
+    'serviceSubdomain' : IDL.Opt(IDL.Text),
+    'plcKind' : PlcKind,
+  });
+  const Result = IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text });
   const Result_2 = IDL.Variant({ 'ok' : IDL.Text, 'err' : IDL.Text });
   const CIDText = IDL.Text;
   const CID__1 = IDL.Record({ 'hash' : IDL.Vec(IDL.Nat8) });
@@ -122,6 +133,38 @@ export const idlFactory = ({ IDL }) => {
     'nodes' : IDL.Vec(IDL.Tuple(CIDText, Node)),
   });
   const Result_5 = IDL.Variant({ 'ok' : ExportData, 'err' : IDL.Text });
+  const Time = IDL.Int;
+  const InitializeRequest = IDL.Record({
+    'hostname' : IDL.Text,
+    'serviceSubdomain' : IDL.Opt(IDL.Text),
+    'plcKind' : PlcKind,
+  });
+  const ServerInfo = IDL.Record({
+    'hostname' : IDL.Text,
+    'serviceSubdomain' : IDL.Opt(IDL.Text),
+    'plcIdentifier' : IDL.Text,
+  });
+  const FailedAttempt = IDL.Record({
+    'startTime' : Time,
+    'endTime' : Time,
+    'request' : InitializeRequest,
+    'errorMessage' : IDL.Text,
+  });
+  const InitializationStatus = IDL.Variant({
+    'initialized' : IDL.Record({
+      'startTime' : Time,
+      'endTime' : Time,
+      'request' : InitializeRequest,
+      'info' : ServerInfo,
+    }),
+    'notInitialized' : IDL.Record({
+      'previousAttempt' : IDL.Opt(FailedAttempt),
+    }),
+    'initializing' : IDL.Record({
+      'startTime' : Time,
+      'request' : InitializeRequest,
+    }),
+  });
   const LogLevel = IDL.Variant({
     'warning' : IDL.Null,
     'info' : IDL.Null,
@@ -186,15 +229,10 @@ export const idlFactory = ({ IDL }) => {
     'streaming_strategy' : IDL.Opt(StreamingStrategy),
     'status_code' : IDL.Nat16,
   });
-  const PlcKind = IDL.Variant({
-    'id' : IDL.Text,
-    'car' : IDL.Vec(IDL.Nat8),
-    'new' : CreatePlcRequest,
-  });
-  const InitializeRequest = IDL.Record({
-    'plc' : PlcKind,
-    'hostname' : IDL.Text,
-    'serviceSubdomain' : IDL.Opt(IDL.Text),
+  const ICRC120UpgradeFinishedResult = IDL.Variant({
+    'Failed' : IDL.Tuple(IDL.Nat, IDL.Text),
+    'Success' : IDL.Nat,
+    'InProgress' : IDL.Nat,
   });
   const ListRecordsRequest = IDL.Record({
     'reverse' : IDL.Opt(IDL.Bool),
@@ -244,6 +282,7 @@ export const idlFactory = ({ IDL }) => {
     'deleteRecord' : IDL.Func([DeleteRecordRequest], [Result_6], []),
     'exportRepoData' : IDL.Func([], [Result_5], ['query']),
     'getDeployer' : IDL.Func([], [IDL.Principal], ['query']),
+    'getInitializationStatus' : IDL.Func([], [InitializationStatus], ['query']),
     'getLogs' : IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(LogEntry)], ['query']),
     'getOwner' : IDL.Func([], [IDL.Principal], ['query']),
     'getRecord' : IDL.Func([GetRecordRequest], [Result_4], ['query']),
@@ -257,15 +296,40 @@ export const idlFactory = ({ IDL }) => {
         [RawUpdateHttpResponse],
         [],
       ),
-    'initialize' : IDL.Func([InitializeRequest], [Result], []),
+    'icrc120_upgrade_finished' : IDL.Func(
+        [],
+        [ICRC120UpgradeFinishedResult],
+        [],
+      ),
     'listRecords' : IDL.Func([ListRecordsRequest], [Result_3], ['query']),
     'postToBluesky' : IDL.Func([IDL.Text], [Result_2], []),
     'putRecord' : IDL.Func([PutRecordRequest], [Result_1], []),
+    'reinitialize' : IDL.Func([IDL.Opt(InitializeRequest)], [Result], []),
     'setOwner' : IDL.Func([IDL.Principal], [Result], []),
     'updatePlcDid' : IDL.Func([UpdatePlcRequest], [Result], []),
   });
   return Pds;
 };
 export const init = ({ IDL }) => {
-  return [IDL.Record({ 'owner' : IDL.Opt(IDL.Principal) })];
+  const PlcService = IDL.Record({
+    'id' : IDL.Text,
+    'endpoint' : IDL.Text,
+    'type' : IDL.Text,
+  });
+  const CreatePlcRequest = IDL.Record({
+    'services' : IDL.Vec(PlcService),
+    'alsoKnownAs' : IDL.Vec(IDL.Text),
+  });
+  const PlcKind = IDL.Variant({
+    'id' : IDL.Text,
+    'car' : IDL.Vec(IDL.Nat8),
+    'new' : CreatePlcRequest,
+  });
+  const InstallArgs = IDL.Record({
+    'owner' : IDL.Opt(IDL.Principal),
+    'hostname' : IDL.Text,
+    'serviceSubdomain' : IDL.Opt(IDL.Text),
+    'plcKind' : PlcKind,
+  });
+  return [InstallArgs];
 };

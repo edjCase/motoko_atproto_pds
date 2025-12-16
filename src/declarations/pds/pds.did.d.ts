@@ -74,6 +74,12 @@ export interface ExportData {
   'commits' : Array<[CIDText, Commit]>,
   'nodes' : Array<[CIDText, Node]>,
 }
+export interface FailedAttempt {
+  'startTime' : Time,
+  'endTime' : Time,
+  'request' : InitializeRequest,
+  'errorMessage' : string,
+}
 export interface GetRecordRequest {
   'cid' : [] | [CIDText],
   'collection' : string,
@@ -88,10 +94,29 @@ export type HashAlgorithm = { 'blake2b256' : null } |
   { 'sha3512' : null } |
   { 'none' : null };
 export type Header = [string, string];
+export type ICRC120UpgradeFinishedResult = { 'Failed' : [bigint, string] } |
+  { 'Success' : bigint } |
+  { 'InProgress' : bigint };
+export type InitializationStatus = {
+    'initialized' : {
+      'startTime' : Time,
+      'endTime' : Time,
+      'request' : InitializeRequest,
+      'info' : ServerInfo,
+    }
+  } |
+  { 'notInitialized' : { 'previousAttempt' : [] | [FailedAttempt] } } |
+  { 'initializing' : { 'startTime' : Time, 'request' : InitializeRequest } };
 export interface InitializeRequest {
-  'plc' : PlcKind,
   'hostname' : string,
   'serviceSubdomain' : [] | [string],
+  'plcKind' : PlcKind,
+}
+export interface InstallArgs {
+  'owner' : [] | [Principal],
+  'hostname' : string,
+  'serviceSubdomain' : [] | [string],
+  'plcKind' : PlcKind,
 }
 export interface ListRecord {
   'cid' : CIDText,
@@ -133,6 +158,7 @@ export interface Pds {
   'deleteRecord' : ActorMethod<[DeleteRecordRequest], Result_6>,
   'exportRepoData' : ActorMethod<[], Result_5>,
   'getDeployer' : ActorMethod<[], Principal>,
+  'getInitializationStatus' : ActorMethod<[], InitializationStatus>,
   'getLogs' : ActorMethod<[bigint, bigint], Array<LogEntry>>,
   'getOwner' : ActorMethod<[], Principal>,
   'getRecord' : ActorMethod<[GetRecordRequest], Result_4>,
@@ -141,10 +167,11 @@ export interface Pds {
     [RawUpdateHttpRequest],
     RawUpdateHttpResponse
   >,
-  'initialize' : ActorMethod<[InitializeRequest], Result>,
+  'icrc120_upgrade_finished' : ActorMethod<[], ICRC120UpgradeFinishedResult>,
   'listRecords' : ActorMethod<[ListRecordsRequest], Result_3>,
   'postToBluesky' : ActorMethod<[string], Result_2>,
   'putRecord' : ActorMethod<[PutRecordRequest], Result_1>,
+  'reinitialize' : ActorMethod<[[] | [InitializeRequest]], Result>,
   'setOwner' : ActorMethod<[Principal], Result>,
   'updatePlcDid' : ActorMethod<[UpdatePlcRequest], Result>,
 }
@@ -211,6 +238,11 @@ export type Result_6 = { 'ok' : DeleteRecordResponse } |
   { 'err' : string };
 export type Result_7 = { 'ok' : CreateRecordResponse } |
   { 'err' : string };
+export interface ServerInfo {
+  'hostname' : string,
+  'serviceSubdomain' : [] | [string],
+  'plcIdentifier' : string,
+}
 export type StreamingCallback = ActorMethod<
   [StreamingToken],
   StreamingCallbackResponse
@@ -222,6 +254,7 @@ export interface StreamingCallbackResponse {
 export type StreamingStrategy = { 'Callback' : CallbackStreamingStrategy };
 export type StreamingToken = Uint8Array | number[];
 export type TIDText = string;
+export type Time = bigint;
 export interface TreeEntry {
   'keySuffix' : Uint8Array | number[],
   'subtreeCID' : [] | [CID],

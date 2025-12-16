@@ -25,9 +25,7 @@ module {
         case (#err(error)) #err("Failed to post to AT Protocol: " # error);
       };
     } catch (error) {
-      let errorMsg = "Error calling PDS canister: " # Error.message(error);
-      Debug.print(errorMsg);
-      #err(errorMsg);
+      #err("Error calling PDS canister: " # Error.message(error));
     };
   };
 

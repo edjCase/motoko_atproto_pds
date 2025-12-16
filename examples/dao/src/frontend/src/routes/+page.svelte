@@ -17,11 +17,24 @@
     let proposalType = "postToBluesky";
     let postMessage = "";
     let pdsCanisterId = "";
-    let pdsOperation = "set"; // "set" or "install"
     let installMode = "install"; // "install", "reinstall", or "upgrade"
+    let installTarget = "existingCanister"; // "existingCanister" or "newCanister"
     let wasmHash = "";
     let initArgs = "";
     let initArgsFormat = "candidText"; // "candidText" or "raw"
+    // Upgrade-specific options
+    let wasmMemoryPersistence = "keep"; // "keep" or "replace"
+    let skipPreUpgrade = false;
+    // NewCanisterSettings
+    let initialCycleBalance = "1.0"; // In trillion cycles
+    let freezingThreshold = "";
+    let wasmMemoryThreshold = "";
+    let controllers = "";
+    let reservedCyclesLimit = "";
+    let logVisibility = "";
+    let wasmMemoryLimit = "";
+    let memoryAllocation = "";
+    let computeAllocation = "";
 
     // Pagination
     let currentPage = 0;
@@ -37,6 +50,41 @@
     let isMember = false;
     let memberCheckLoading = false;
     let votingPower = 0;
+
+    // PDS Canister state
+    let configuredPdsCanisterId = null;
+    let isLocal = false;
+    let pdsPollingInterval = null;
+
+    // Detect environment after mount
+    onMount(async () => {
+        isLocal =
+            typeof window !== "undefined" &&
+            (window.location.hostname === "localhost" ||
+                window.location.hostname === "127.0.0.1");
+        try {
+            // Initialize authentication
+            await initAuth();
+            await loadProposals();
+            await loadPdsCanisterId();
+
+            // Start polling for PDS canister ID if not found
+            if (!configuredPdsCanisterId) {
+                pdsPollingInterval = setInterval(async () => {
+                    await loadPdsCanisterId();
+                }, 30000); // Poll every 30 seconds
+            }
+        } catch (e) {
+            console.error("Error during onMount:", e);
+        }
+
+        // Cleanup interval on component destroy
+        return () => {
+            if (pdsPollingInterval) {
+                clearInterval(pdsPollingInterval);
+            }
+        };
+    });
 
     // Check membership when authenticated
     $: if (isAuthenticated && principal) {
@@ -70,15 +118,32 @@
         }
     }
 
-    onMount(async () => {
+    async function loadPdsCanisterId() {
         try {
-            // Initialize authentication
-            await initAuth();
-            await loadProposals();
+            const canisterId = await backend.getPdsCanisterId();
+            if (canisterId) {
+                configuredPdsCanisterId = canisterId.toText();
+                // Stop polling once we have a canister ID
+                if (pdsPollingInterval) {
+                    clearInterval(pdsPollingInterval);
+                    pdsPollingInterval = null;
+                }
+            } else {
+                configuredPdsCanisterId = null;
+            }
         } catch (e) {
-            console.error("Error during onMount:", e);
+            console.error("Error loading PDS canister ID:", e);
+            configuredPdsCanisterId = null;
         }
-    });
+    }
+
+    function getPdsCanisterUrl(canisterId) {
+        if (isLocal) {
+            return `http://${canisterId}.raw.localhost:4943`;
+        } else {
+            return `https://${canisterId}.raw.icp0.io`;
+        }
+    }
 
     async function handleLogin() {
         try {
@@ -142,74 +207,189 @@
                     error = "PDS Canister ID cannot be empty";
                     return;
                 }
+                proposalContent = {
+                    setPdsCanister: {
+                        canisterId: Principal.fromText(pdsCanisterId),
+                    },
+                };
+            } else if (proposalType === "installPds") {
+                if (!wasmHash.trim() || !initArgs.trim()) {
+                    error =
+                        "WASM Hash and Init Args are required for install operation";
+                    return;
+                }
 
-                let kind;
-                if (pdsOperation === "set") {
-                    kind = { set: null };
-                } else if (pdsOperation === "install") {
-                    if (!wasmHash.trim() || !initArgs.trim()) {
-                        error =
-                            "WASM Hash and Init Args are required for install operation";
-                        return;
-                    }
+                // Convert hex string to Uint8Array for wasmHash
+                let wasmHashBytes;
+                try {
+                    wasmHashBytes = new Uint8Array(
+                        wasmHash
+                            .match(/.{1,2}/g)
+                            .map((byte) => parseInt(byte, 16))
+                    );
+                } catch (e) {
+                    error =
+                        "Invalid WASM Hash format. Please provide a hex string.";
+                    return;
+                }
 
-                    // Convert hex string to Uint8Array for wasmHash
-                    let wasmHashBytes;
+                // Create initArgs variant based on format
+                let initArgsValue;
+                if (initArgsFormat === "candidText") {
+                    initArgsValue = {
+                        candidText: initArgs,
+                    };
+                } else {
+                    let initArgsBytes;
                     try {
-                        wasmHashBytes = new Uint8Array(
-                            wasmHash
+                        initArgsBytes = new Uint8Array(
+                            initArgs
                                 .match(/.{1,2}/g)
                                 .map((byte) => parseInt(byte, 16))
                         );
                     } catch (e) {
-                        error =
-                            "Invalid WASM Hash format. Please provide a hex string.";
+                        error = "Invalid hex format for Init Args.";
                         return;
                     }
+                    initArgsValue = {
+                        raw: initArgsBytes,
+                    };
+                }
 
-                    // Create initArgs variant based on format
-                    let initArgsValue;
-                    if (initArgsFormat === "candidText") {
-                        // Send as candidText variant
-                        initArgsValue = {
-                            candidText: initArgs,
+                // Build the kind variant based on install mode
+                let kindVariant;
+                if (installMode === "install") {
+                    let installKind;
+                    if (installTarget === "newCanister") {
+                        // Parse log visibility
+                        let logVisibilityValue = [];
+                        if (logVisibility.trim() === "controllers") {
+                            logVisibilityValue = [{ controllers: null }];
+                        } else if (logVisibility.trim() === "public") {
+                            logVisibilityValue = [{ public_: null }];
+                        } else if (
+                            logVisibility.trim().startsWith("allowedViewers:")
+                        ) {
+                            const viewers = logVisibility
+                                .substring(15)
+                                .split(",")
+                                .map((p) => p.trim())
+                                .filter((p) => p)
+                                .map((p) => Principal.fromText(p));
+                            if (viewers.length > 0) {
+                                logVisibilityValue = [
+                                    { allowedViewers: viewers },
+                                ];
+                            }
+                        }
+
+                        // Parse controllers
+                        let controllersValue = [];
+                        if (controllers.trim()) {
+                            const controllersList = controllers
+                                .split(",")
+                                .map((p) => p.trim())
+                                .filter((p) => p)
+                                .map((p) => Principal.fromText(p));
+                            if (controllersList.length > 0) {
+                                controllersValue = [controllersList];
+                            }
+                        }
+
+                        installKind = {
+                            newCanister: {
+                                initialCycleBalance: BigInt(
+                                    Math.floor(
+                                        parseFloat(
+                                            initialCycleBalance || "1.0"
+                                        ) * 1_000_000_000_000
+                                    )
+                                ),
+                                settings: {
+                                    freezingThreshold: freezingThreshold.trim()
+                                        ? [BigInt(freezingThreshold)]
+                                        : [],
+                                    wasmMemoryThreshold:
+                                        wasmMemoryThreshold.trim()
+                                            ? [BigInt(wasmMemoryThreshold)]
+                                            : [],
+                                    controllers: controllersValue,
+                                    reservedCyclesLimit:
+                                        reservedCyclesLimit.trim()
+                                            ? [BigInt(reservedCyclesLimit)]
+                                            : [],
+                                    logVisibility: logVisibilityValue,
+                                    wasmMemoryLimit: wasmMemoryLimit.trim()
+                                        ? [BigInt(wasmMemoryLimit)]
+                                        : [],
+                                    memoryAllocation: memoryAllocation.trim()
+                                        ? [BigInt(memoryAllocation)]
+                                        : [],
+                                    computeAllocation: computeAllocation.trim()
+                                        ? [BigInt(computeAllocation)]
+                                        : [],
+                                },
+                            },
                         };
                     } else {
-                        // Send as raw variant (convert hex string to bytes)
-                        let initArgsBytes;
-                        try {
-                            initArgsBytes = new Uint8Array(
-                                initArgs
-                                    .match(/.{1,2}/g)
-                                    .map((byte) => parseInt(byte, 16))
-                            );
-                        } catch (e) {
-                            error = "Invalid hex format for Init Args.";
+                        if (!pdsCanisterId.trim()) {
+                            error =
+                                "PDS Canister ID required for existing canister install";
                             return;
                         }
-                        initArgsValue = {
-                            raw: initArgsBytes,
+                        installKind = {
+                            existingCanister: Principal.fromText(pdsCanisterId),
                         };
                     }
-
-                    kind = {
+                    kindVariant = {
                         install: {
-                            kind: { [installMode]: null },
-                            wasmHash: wasmHashBytes,
-                            initArgs: initArgsValue,
+                            kind: installKind,
                         },
                     };
-                } else {
-                    error = "Unknown operation type";
-                    return;
+                } else if (installMode === "reinstall") {
+                    if (!pdsCanisterId.trim()) {
+                        error = "PDS Canister ID required for reinstall";
+                        return;
+                    }
+                    kindVariant = {
+                        reinstall: {
+                            canisterId: Principal.fromText(pdsCanisterId),
+                        },
+                    };
+                } else if (installMode === "upgrade") {
+                    if (!pdsCanisterId.trim()) {
+                        error = "PDS Canister ID required for upgrade";
+                        return;
+                    }
+                    kindVariant = {
+                        upgrade: {
+                            canisterId: Principal.fromText(pdsCanisterId),
+                            wasmMemoryPersistence: {
+                                [wasmMemoryPersistence]: null,
+                            },
+                            skipPreUpgrade: skipPreUpgrade,
+                        },
+                    };
                 }
 
                 proposalContent = {
-                    setPdsCanister: {
-                        canisterId: Principal.fromText(pdsCanisterId),
-                        kind,
+                    installPds: {
+                        kind: kindVariant,
+                        wasmHash: wasmHashBytes,
+                        initArgs: initArgsValue,
                     },
                 };
+                console.log(
+                    "Proposal content:",
+                    JSON.stringify(
+                        proposalContent,
+                        (key, value) =>
+                            typeof value === "bigint"
+                                ? value.toString()
+                                : value,
+                        2
+                    )
+                );
             }
 
             loading = true;
@@ -221,11 +401,25 @@
                 postMessage = "";
                 pdsCanisterId = "";
                 installMode = "install";
+                installTarget = "existingCanister";
                 wasmHash = "";
                 initArgs = "";
                 initArgsFormat = "candidText";
+                wasmMemoryPersistence = "keep";
+                skipPreUpgrade = false;
+                initialCycleBalance = "1.0";
+                freezingThreshold = "";
+                wasmMemoryThreshold = "";
+                controllers = "";
+                reservedCyclesLimit = "";
+                logVisibility = "";
+                wasmMemoryLimit = "";
+                memoryAllocation = "";
+                computeAllocation = "";
                 // Reload proposals
                 await loadProposals();
+                // Reload PDS canister ID in case it changed
+                await loadPdsCanisterId();
                 // Switch to proposals tab
                 activeTab = "proposals";
             } else {
@@ -320,7 +514,51 @@
 
 <main>
     <div class="terminal-container">
-        <h1>DAO Governance Terminal<span class="blink">_</span></h1>
+        <div style="margin-bottom: 20px;">
+            <div
+                style="margin: 0; display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px;"
+            >
+                <div style="font-size: 1.8em; font-weight: bold;">
+                    DAO Governance Terminal<span class="blink">_</span>
+                </div>
+
+                <div style="text-align: center;">
+                    <div
+                        style="color: #00ff00; font-size: 1.2em; margin-bottom: 5px; font-weight: bold;"
+                    >
+                        PDS Canister
+                    </div>
+                    {#if configuredPdsCanisterId}
+                        <div
+                            style="display: flex; align-items: center; gap: 8px; justify-content: center;"
+                        >
+                            <span
+                                style="color: #00aaff; font-family: monospace; font-size: 1em;"
+                            >
+                                {configuredPdsCanisterId}
+                            </span>
+                            <a
+                                href={getPdsCanisterUrl(
+                                    configuredPdsCanisterId
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style="color: #00ff00; text-decoration: none; font-size: 0.9em; padding: 4px 8px; border: 1px solid #00ff00; background: rgba(0, 255, 0, 0.1); border-radius: 3px; line-height: 1; display: inline-block; cursor: pointer;"
+                                title="Open PDS Canister in new tab"
+                            >
+                                ↗
+                            </a>
+                        </div>
+                    {:else}
+                        <div
+                            style="color: #888888; font-family: monospace; font-size: 0.85em;"
+                        >
+                            Not Configured
+                        </div>
+                    {/if}
+                </div>
+            </div>
+        </div>
 
         <!-- Authentication Section -->
         <div class="auth-section">
@@ -594,6 +832,7 @@
                             <option value="setPdsCanister"
                                 >Set PDS Canister</option
                             >
+                            <option value="installPds">Install PDS</option>
                         </select>
                     </div>
 
@@ -623,110 +862,321 @@
                                 placeholder="e.g., rrkah-fqaaa-aaaaa-aaaaq-cai"
                                 disabled={!isAuthenticated || !isMember}
                             />
+                            <small style="color: #00aa00;"
+                                >Set the PDS canister to an existing canister
+                                without modifying it</small
+                            >
                         </div>
+                    {/if}
 
+                    {#if proposalType === "installPds"}
                         <div class="form-group">
-                            <label for="pdsOperation">Operation:</label>
+                            <label for="installMode">Install Mode:</label>
                             <select
-                                id="pdsOperation"
-                                bind:value={pdsOperation}
+                                id="installMode"
+                                bind:value={installMode}
                                 disabled={!isAuthenticated || !isMember}
                             >
-                                <option value="set"
-                                    >Set (reference existing canister)</option
-                                >
                                 <option value="install"
-                                    >Install (install wasm to canister)</option
+                                    >Install (fresh installation)</option
+                                >
+                                <option value="reinstall"
+                                    >Reinstall (wipe and reinstall)</option
+                                >
+                                <option value="upgrade"
+                                    >Upgrade (preserve state)</option
                                 >
                             </select>
                         </div>
 
-                        {#if pdsOperation === "install"}
+                        <div class="form-group">
+                            <label for="wasmHash">WASM Hash (hex):</label>
+                            <input
+                                type="text"
+                                id="wasmHash"
+                                bind:value={wasmHash}
+                                placeholder="e.g., 1a2b3c4d5e6f..."
+                                disabled={!isAuthenticated || !isMember}
+                            />
+                            <small style="color: #00aa00;"
+                                >Enter the WASM module hash as a hex string</small
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="initArgsFormat">Init Args Format:</label
+                            >
+                            <select
+                                id="initArgsFormat"
+                                bind:value={initArgsFormat}
+                                disabled={!isAuthenticated || !isMember}
+                            >
+                                <option value="candidText">Candid Text</option>
+                                <option value="raw">Raw (Hex-encoded)</option>
+                            </select>
+                            <small style="color: #00aa00;">
+                                {#if initArgsFormat === "candidText"}
+                                    Enter as Candid text - will be sent as-is to
+                                    backend
+                                {:else}
+                                    Enter as hex bytes - will be converted to
+                                    binary
+                                {/if}
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="initArgs">
+                                {#if initArgsFormat === "candidText"}
+                                    Init Args (Candid Text):
+                                {:else}
+                                    Init Args (Hex):
+                                {/if}
+                            </label>
+                            <textarea
+                                id="initArgs"
+                                bind:value={initArgs}
+                                placeholder={initArgsFormat === "candidText"
+                                    ? 'e.g., (record { hostname = "mydao.bsky.social"; serviceSubdomain = opt "service"; plcIdentifier = "did:plc:..."; })'
+                                    : "e.g., 4449444c..."}
+                                disabled={!isAuthenticated || !isMember}
+                            ></textarea>
+                            <small style="color: #00aa00;">
+                                {#if initArgsFormat === "candidText"}
+                                    Enter initialization arguments as Candid
+                                    text
+                                {:else}
+                                    Enter initialization arguments as hex string
+                                {/if}
+                            </small>
+                        </div>
+
+                        {#if installMode === "install"}
                             <div class="form-group">
-                                <label for="installMode">Install Mode:</label>
+                                <label for="installTarget"
+                                    >Install Target:</label
+                                >
                                 <select
-                                    id="installMode"
-                                    bind:value={installMode}
+                                    id="installTarget"
+                                    bind:value={installTarget}
                                     disabled={!isAuthenticated || !isMember}
                                 >
-                                    <option value="install"
-                                        >Install (fresh installation)</option
+                                    <option value="existingCanister"
+                                        >Existing Canister</option
                                     >
-                                    <option value="reinstall"
-                                        >Reinstall (wipe and reinstall)</option
-                                    >
-                                    <option value="upgrade"
-                                        >Upgrade (preserve state)</option
+                                    <option value="newCanister"
+                                        >New Canister</option
                                     >
                                 </select>
                             </div>
 
+                            {#if installTarget === "newCanister"}
+                                <div class="form-group">
+                                    <label for="initialCycleBalance"
+                                        >Initial Cycle Balance (Trillion
+                                        Cycles):</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="initialCycleBalance"
+                                        bind:value={initialCycleBalance}
+                                        placeholder="1.0"
+                                        step="0.1"
+                                        min="0.5"
+                                        disabled={!isAuthenticated || !isMember}
+                                    />
+                                    <small style="color: #00aa00;"
+                                        >Cycles to allocate to the new canister
+                                        (deducted from DAO). Default: 1.0
+                                        trillion</small
+                                    >
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="freezingThreshold"
+                                        >Freezing Threshold (optional):</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="freezingThreshold"
+                                        bind:value={freezingThreshold}
+                                        placeholder="Leave empty for default"
+                                        disabled={!isAuthenticated || !isMember}
+                                    />
+                                    <small style="color: #00aa00;"
+                                        >Cycles threshold before freezing</small
+                                    >
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="controllers"
+                                        >Controllers (optional):</label
+                                    >
+                                    <input
+                                        type="text"
+                                        id="controllers"
+                                        bind:value={controllers}
+                                        placeholder="e.g., aaaaa-aa, bbbbb-bb (comma-separated)"
+                                        disabled={!isAuthenticated || !isMember}
+                                    />
+                                    <small style="color: #00aa00;"
+                                        >Comma-separated principal IDs</small
+                                    >
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="memoryAllocation"
+                                        >Memory Allocation (optional):</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="memoryAllocation"
+                                        bind:value={memoryAllocation}
+                                        placeholder="Leave empty for default"
+                                        disabled={!isAuthenticated || !isMember}
+                                    />
+                                    <small style="color: #00aa00;"
+                                        >Memory allocation in bytes</small
+                                    >
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="computeAllocation"
+                                        >Compute Allocation (optional):</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="computeAllocation"
+                                        bind:value={computeAllocation}
+                                        placeholder="0-100"
+                                        disabled={!isAuthenticated || !isMember}
+                                    />
+                                    <small style="color: #00aa00;"
+                                        >Percentage (0-100)</small
+                                    >
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="wasmMemoryLimit"
+                                        >WASM Memory Limit (optional):</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="wasmMemoryLimit"
+                                        bind:value={wasmMemoryLimit}
+                                        placeholder="Leave empty for default"
+                                        disabled={!isAuthenticated || !isMember}
+                                    />
+                                    <small style="color: #00aa00;"
+                                        >WASM memory limit in bytes</small
+                                    >
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="wasmMemoryThreshold"
+                                        >WASM Memory Threshold (optional):</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="wasmMemoryThreshold"
+                                        bind:value={wasmMemoryThreshold}
+                                        placeholder="Leave empty for default"
+                                        disabled={!isAuthenticated || !isMember}
+                                    />
+                                    <small style="color: #00aa00;"
+                                        >WASM memory threshold in bytes</small
+                                    >
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="reservedCyclesLimit"
+                                        >Reserved Cycles Limit (optional):</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="reservedCyclesLimit"
+                                        bind:value={reservedCyclesLimit}
+                                        placeholder="Leave empty for default"
+                                        disabled={!isAuthenticated || !isMember}
+                                    />
+                                    <small style="color: #00aa00;"
+                                        >Reserved cycles limit</small
+                                    >
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="logVisibility"
+                                        >Log Visibility (optional):</label
+                                    >
+                                    <input
+                                        type="text"
+                                        id="logVisibility"
+                                        bind:value={logVisibility}
+                                        placeholder="controllers | public | allowedViewers:principal1,principal2"
+                                        disabled={!isAuthenticated || !isMember}
+                                    />
+                                    <small style="color: #00aa00;"
+                                        >Leave empty for default, or specify:
+                                        controllers, public, or
+                                        allowedViewers:principal1,principal2</small
+                                    >
+                                </div>
+                            {:else}
+                                <div class="form-group">
+                                    <label for="pdsCanisterId"
+                                        >PDS Canister ID:</label
+                                    >
+                                    <input
+                                        type="text"
+                                        id="pdsCanisterId"
+                                        bind:value={pdsCanisterId}
+                                        placeholder="e.g., rrkah-fqaaa-aaaaa-aaaaq-cai"
+                                        disabled={!isAuthenticated || !isMember}
+                                    />
+                                </div>
+                            {/if}
+                        {:else if installMode !== "install"}
                             <div class="form-group">
-                                <label for="wasmHash">WASM Hash (hex):</label>
+                                <label for="pdsCanisterId"
+                                    >PDS Canister ID:</label
+                                >
                                 <input
                                     type="text"
-                                    id="wasmHash"
-                                    bind:value={wasmHash}
-                                    placeholder="e.g., 1a2b3c4d5e6f..."
+                                    id="pdsCanisterId"
+                                    bind:value={pdsCanisterId}
+                                    placeholder="e.g., rrkah-fqaaa-aaaaa-aaaaq-cai"
                                     disabled={!isAuthenticated || !isMember}
                                 />
-                                <small style="color: #00aa00;"
-                                    >Enter the WASM module hash as a hex string</small
-                                >
                             </div>
+                        {/if}
 
+                        {#if installMode === "upgrade"}
                             <div class="form-group">
-                                <label for="initArgsFormat"
-                                    >Init Args Format:</label
+                                <label for="wasmMemoryPersistence"
+                                    >WASM Memory Persistence:</label
                                 >
                                 <select
-                                    id="initArgsFormat"
-                                    bind:value={initArgsFormat}
+                                    id="wasmMemoryPersistence"
+                                    bind:value={wasmMemoryPersistence}
                                     disabled={!isAuthenticated || !isMember}
                                 >
-                                    <option value="candidText"
-                                        >Candid Text</option
-                                    >
-                                    <option value="raw"
-                                        >Raw (Hex-encoded)</option
-                                    >
+                                    <option value="keep">Keep</option>
+                                    <option value="replace">Replace</option>
                                 </select>
-                                <small style="color: #00aa00;">
-                                    {#if initArgsFormat === "candidText"}
-                                        Enter as Candid text - will be sent
-                                        as-is to backend
-                                    {:else}
-                                        Enter as hex bytes - will be converted
-                                        to binary
-                                    {/if}
-                                </small>
                             </div>
 
                             <div class="form-group">
-                                <label for="initArgs">
-                                    {#if initArgsFormat === "candidText"}
-                                        Init Args (Candid Text):
-                                    {:else}
-                                        Init Args (Hex):
-                                    {/if}
+                                <label>
+                                    <input
+                                        type="checkbox"
+                                        bind:checked={skipPreUpgrade}
+                                        disabled={!isAuthenticated || !isMember}
+                                    />
+                                    Skip Pre-Upgrade
                                 </label>
-                                <textarea
-                                    id="initArgs"
-                                    bind:value={initArgs}
-                                    placeholder={initArgsFormat === "candidText"
-                                        ? 'e.g., (record { hostname = "mydao.bsky.social"; serviceSubdomain = opt "service"; plcIdentifier = "did:plc:..."; })'
-                                        : "e.g., 4449444c..."}
-                                    disabled={!isAuthenticated || !isMember}
-                                ></textarea>
-                                <small style="color: #00aa00;">
-                                    {#if initArgsFormat === "candidText"}
-                                        Enter initialization arguments as Candid
-                                        text
-                                    {:else}
-                                        Enter initialization arguments as hex
-                                        string
-                                    {/if}
-                                </small>
+                                <small style="color: #00aa00;"
+                                    >Skip the pre_upgrade hook during upgrade</small
+                                >
                             </div>
                         {/if}
                     {/if}
