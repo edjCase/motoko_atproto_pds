@@ -2,7 +2,7 @@
 
 set -e
 # Configuration
-DEFAULT_CHUNK_SIZE=$((1 * 1024 * 1024))  # 1MB
+DEFAULT_CHUNK_SIZE=1048576 # MAX size is 1048576 bytes (1 MiB)
 CHUNK_SIZE=${CHUNK_SIZE:-$DEFAULT_CHUNK_SIZE}
 
 if [ -z "$1" ]; then

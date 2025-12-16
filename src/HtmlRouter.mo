@@ -105,6 +105,25 @@ module {
             0%, 50% { opacity: 1; }
             51%, 100% { opacity: 0; }
         }
+        .copy-btn {
+            background: #000;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            margin-left: 8px;
+            transition: all 0.2s;
+        }
+        .copy-btn:hover {
+            background: #00ff00;
+            color: #000;
+        }
+        .copy-btn.copied {
+            background: #00ff00;
+            color: #000;
+        }
         @media (max-width: 600px) {
             .terminal {
                 padding: 30px 20px;
@@ -122,9 +141,9 @@ module {
         <div class=\"section links-section\">
             <p class=\"prompt\">Quick Links</p>
             <p>
-                Atmosphere: at://{HANDLE}<br>
+                Atmosphere: <span id=\"handle-text\">at://{HANDLE}</span><button class=\"copy-btn\" onclick=\"copyToClipboard('at://{HANDLE}', this)\">Copy</button><br>
                 BluSky Profile: <a href=\"https://bsky.app/profile/{HANDLE}\" target=\"_blank\">bsky.app/profile/{HANDLE}</a><br>
-                DID: <span class=\"highlight\">{PLC_DID}</span> (<a href=\"https://web.plc.directory/did/{PLC_DID}\" target=\"_blank\">Directory</a>)<br>
+                DID: <span class=\"highlight\" id=\"did-text\">{PLC_DID}</span><button class=\"copy-btn\" onclick=\"copyToClipboard('{PLC_DID}', this)\">Copy</button> (<a href=\"https://web.plc.directory/did/{PLC_DID}\" target=\"_blank\">Directory</a>)<br>
             </p>
         </div>
 
@@ -167,6 +186,21 @@ module {
             </div>
         </div>
 
+        <div class=\"section\">
+            <p class=\"section-title\">&gt; Request Crawl</p>
+            <p style=\"color: #00aa00; margin-bottom: 15px;\">Request that a relay crawl this PDS to index it.</p>
+            <div style=\"margin-bottom: 10px;\">
+                <label style=\"color: #00ff00; display: block; margin-bottom: 5px;\">Hostname:</label>
+                <input type=\"text\" id=\"crawl-hostname\" value=\"{FULL_DOMAIN}\" style=\"background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 8px; font-family: 'Courier New', monospace; width: 100%; max-width: 400px;\">
+            </div>
+            <div style=\"margin-bottom: 15px;\">
+                <label style=\"color: #00ff00; display: block; margin-bottom: 5px;\">Relay URL:</label>
+                <input type=\"text\" id=\"crawl-relay\" value=\"https://bsky.network\" style=\"background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 8px; font-family: 'Courier New', monospace; width: 100%; max-width: 400px;\">
+            </div>
+            <button onclick=\"requestCrawl()\" style=\"background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 8px 15px; cursor: pointer; font-family: 'Courier New', monospace; margin-bottom: 15px;\">Request Crawl</button>
+            <div id=\"crawl-message\" style=\"min-height: 20px;\"></div>
+        </div>
+
         <div class=\"footer\">
             <p class=\"prompt\">Open source implementation in Motoko</p>
             <p><a href=\"https://github.com/edjCase/motoko_atproto\" target=\"_blank\">github.com/edjCase/motoko_atproto</a></p>
@@ -204,12 +238,61 @@ module {
             }
         }
 
+        async function requestCrawl() {
+            const messageDiv = document.getElementById('crawl-message');
+            const hostname = document.getElementById('crawl-hostname').value;
+            const relay = document.getElementById('crawl-relay').value;
+
+            messageDiv.innerHTML = '<p style=\"color: #00aa00;\">Requesting crawl...</p>';
+
+            try {
+                const response = await fetch(relay + '/xrpc/com.atproto.sync.requestCrawl', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ hostname: hostname })
+                });
+
+                if (response.ok) {
+                    messageDiv.innerHTML = '<p style=\"color: #00ff00;\">✓ Crawl request successful</p>';
+                } else {
+                    const errorText = await response.text();
+                    messageDiv.innerHTML = '<p style=\"color: #ff0000;\">✗ Crawl request failed (HTTP ' + response.status + '): ' + errorText + '</p>';
+                }
+            } catch (error) {
+                messageDiv.innerHTML = '<p style=\"color: #ff0000;\">✗ Error: ' + error.message + '</p>';
+            }
+        }
+
+        function copyToClipboard(text, button) {
+            navigator.clipboard.writeText(text).then(function() {
+                const originalText = button.textContent;
+                button.textContent = '\\u2713';
+                button.classList.add('copied');
+                setTimeout(function() {
+                    button.textContent = originalText;
+                    button.classList.remove('copied');
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Failed to copy: ', err);
+            });
+        }
+
         // Load posts on page load
         loadPosts();
     </script>
 </body>
 </html>"
             |> Text.replace(_, #text("{HANDLE}"), serverInfo.hostname)
+            |> Text.replace(
+                _,
+                #text("{FULL_DOMAIN}"),
+                switch (serverInfo.serviceSubdomain) {
+                    case (?subdomain) subdomain # "." # serverInfo.hostname;
+                    case (null) serverInfo.hostname;
+                },
+            )
             |> Text.replace(_, #text("{PLC_DID}"), DID.Plc.toText(serverInfo.plcIdentifier));
 
             routeContext.buildResponse(#ok, #html(landingPageHtml));
