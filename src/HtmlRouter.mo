@@ -6,13 +6,13 @@ import DID "mo:did@3";
 
 module {
 
-  public class Router(
-    serverInfoHandler : ServerInfoHandler.Handler
-  ) = this {
+    public class Router(
+        serverInfoHandler : ServerInfoHandler.Handler
+    ) = this {
 
-    public func getLandingPage(routeContext : RouteContext.RouteContext) : Route.HttpResponse {
-      let serverInfo = serverInfoHandler.get();
-      let landingPageHtml = "<!DOCTYPE html>
+        public func getLandingPage(routeContext : RouteContext.RouteContext) : Route.HttpResponse {
+            let serverInfo = serverInfoHandler.get();
+            let landingPageHtml = "<!DOCTYPE html>
 <html lang=\"en\">
 <head>
     <meta charset=\"UTF-8\">
@@ -157,17 +157,62 @@ module {
             </p>
         </div>
 
+        <div class=\"section\">
+            <div style=\"display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;\">
+                <p class=\"section-title\" style=\"margin-bottom: 0;\">&gt; Latest Bluesky Posts</p>
+                <button onclick=\"loadPosts()\" style=\"background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 5px 10px; cursor: pointer; font-family: 'Courier New', monospace;\">Refresh</button>
+            </div>
+            <div id=\"posts-container\" style=\"margin-top: 15px; min-height: 50px;\">
+                <p style=\"color: #00aa00;\">Loading posts...</p>
+            </div>
+        </div>
+
         <div class=\"footer\">
             <p class=\"prompt\">Open source implementation in Motoko</p>
             <p><a href=\"https://github.com/edjCase/motoko_atproto\" target=\"_blank\">github.com/edjCase/motoko_atproto</a></p>
         </div>
     </div>
+
+    <script>
+        async function loadPosts() {
+            const container = document.getElementById('posts-container');
+
+            try {
+                const response = await fetch('/xrpc/com.atproto.repo.listRecords?repo={PLC_DID}&collection=app.bsky.feed.post&limit=10&reverse=true');
+                const data = await response.json();
+
+                if (!data.records || data.records.length === 0) {
+                    container.innerHTML = '<p style=\"color: #00aa00;\">No posts yet.</p>';
+                    return;
+                }
+
+                let html = '';
+                data.records.forEach((record, index) => {
+                    const text = record.value.text || '';
+                    const date = new Date(record.value.createdAt).toLocaleString();
+                    html += `
+                        <div style=\"margin-bottom: 20px; padding: 15px; border: 1px solid #003300; background: rgba(0, 255, 0, 0.02);\">
+                            <p style=\"color: #00dd00; white-space: pre-wrap; margin-bottom: 10px;\">${text}</p>
+                            <p style=\"color: #00aa00; font-size: 0.85rem;\">${date}</p>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            } catch (error) {
+                container.innerHTML = '<p style=\"color: #ff0000;\">Error loading posts: ' + error.message + '</p>';
+            }
+        }
+
+        // Load posts on page load
+        loadPosts();
+    </script>
 </body>
 </html>"
-      |> Text.replace(_, #text("{HANDLE}"), serverInfo.hostname)
-      |> Text.replace(_, #text("{PLC_DID}"), DID.Plc.toText(serverInfo.plcIdentifier));
+            |> Text.replace(_, #text("{HANDLE}"), serverInfo.hostname)
+            |> Text.replace(_, #text("{PLC_DID}"), DID.Plc.toText(serverInfo.plcIdentifier));
 
-      routeContext.buildResponse(#ok, #html(landingPageHtml));
+            routeContext.buildResponse(#ok, #html(landingPageHtml));
+        };
     };
-  };
 };
