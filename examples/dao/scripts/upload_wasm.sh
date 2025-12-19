@@ -17,6 +17,15 @@ network=$1
 DEFAULT_PATH="../../.dfx/$network/canisters/pds/pds.wasm"
 wasm_file=${2:-$DEFAULT_PATH}
 
+# If using default path, generate first
+if [ "$wasm_file" = "$DEFAULT_PATH" ]; then
+    echo "Using default path, running dfx generate pds..."
+    pushd ../.. > /dev/null
+    dfx generate pds
+    popd > /dev/null
+    echo ""
+fi
+
 if [ ! -f "$wasm_file" ]; then
     echo "Error: WASM file not found: $wasm_file"
     exit 1
@@ -98,6 +107,8 @@ set -e
 
 if [ $exit_code -eq 0 ]; then
     echo "✓ Complete"
+    echo ""
+    echo "WASM Hash: $wasm_hash"
 else
     echo "✗ Finalize failed"
     exit 1

@@ -3,6 +3,7 @@ import Runtime "mo:core@1/Runtime";
 import Time "mo:core@1/Time";
 import Option "mo:core@1/Option";
 import DID "mo:did@3";
+import Repository "mo:atproto@0/Repository";
 
 module {
   public type StableData = State;
@@ -14,6 +15,7 @@ module {
     #initializing : {
       request : InitializeRequest;
       startTime : Time.Time;
+      plc : ?(DID.Plc.DID, ?Repository.Repository);
     };
     #initialized : {
       startTime : Time.Time;

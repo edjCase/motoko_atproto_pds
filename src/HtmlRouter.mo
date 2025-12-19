@@ -187,16 +187,20 @@ module {
         </div>
 
         <div class=\"section\">
+            <div style=\"display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;\">
+                <p class=\"section-title\" style=\"margin-bottom: 0;\">&gt; Relay Status</p>
+                <button onclick=\"checkRelayStatus()\" style=\"background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 5px 10px; cursor: pointer; font-family: 'Courier New', monospace;\">Check</button>
+            </div>
+            <div style=\"margin-bottom: 10px;\">
+                <label style=\"color: #00ff00; display: block; margin-bottom: 5px;\">Relay URL:</label>
+                <input type=\"text\" id=\"relay-url\" value=\"https://bsky.network\" style=\"background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 8px; font-family: 'Courier New', monospace; width: 100%; max-width: 400px;\">
+            </div>
+            <div id=\"relay-status\" style=\"min-height: 20px; margin-top: 15px;\"></div>
+        </div>
+
+        <div class=\"section\" id=\"crawl-section\" style=\"display: none;\">
             <p class=\"section-title\">&gt; Request Crawl</p>
             <p style=\"color: #00aa00; margin-bottom: 15px;\">Request that a relay crawl this PDS to index it.</p>
-            <div style=\"margin-bottom: 10px;\">
-                <label style=\"color: #00ff00; display: block; margin-bottom: 5px;\">Hostname:</label>
-                <input type=\"text\" id=\"crawl-hostname\" value=\"{FULL_DOMAIN}\" style=\"background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 8px; font-family: 'Courier New', monospace; width: 100%; max-width: 400px;\">
-            </div>
-            <div style=\"margin-bottom: 15px;\">
-                <label style=\"color: #00ff00; display: block; margin-bottom: 5px;\">Relay URL:</label>
-                <input type=\"text\" id=\"crawl-relay\" value=\"https://bsky.network\" style=\"background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 8px; font-family: 'Courier New', monospace; width: 100%; max-width: 400px;\">
-            </div>
             <button onclick=\"requestCrawl()\" style=\"background: #000; color: #00ff00; border: 1px solid #00ff00; padding: 8px 15px; cursor: pointer; font-family: 'Courier New', monospace; margin-bottom: 15px;\">Request Crawl</button>
             <div id=\"crawl-message\" style=\"min-height: 20px;\"></div>
         </div>
@@ -208,6 +212,83 @@ module {
     </div>
 
     <script>
+        async function checkRelayStatus() {
+            const statusDiv = document.getElementById('relay-status');
+            const crawlSection = document.getElementById('crawl-section');
+            const relay = document.getElementById('relay-url').value;
+            const handle = '{HANDLE}';
+
+            statusDiv.innerHTML = '<p style=\"color: #00aa00;\">$ Checking relay status...</p>';
+
+            let output = '<div style=\"font-family: \\'Courier New\\', monospace; color: #00dd00;\">';
+            output += '<p style=\"color: #00ff00;\">$ relay-status-check --relay=' + relay + ' --handle=' + handle + '</p>';
+
+            let isIndexed = false;
+
+            try {
+                // Test 1: Resolve Handle
+                const resolveRes = await fetch(relay + '/xrpc/com.atproto.identity.resolveHandle?handle=' + handle);
+                const resolveOk = resolveRes.ok;
+                output += '<p>[1/3] resolveHandle: ' + (resolveOk ? '<span style=\"color: #00ff00;\">✓ FOUND</span>' : '<span style=\"color: #ff6600;\">✗ NOT FOUND</span>') + '</p>';
+
+                // Test 2: Get Profile
+                const profileRes = await fetch(relay + '/xrpc/app.bsky.actor.getProfile?actor=' + handle);
+                const profileOk = profileRes.ok;
+                output += '<p>[2/3] getProfile: ' + (profileOk ? '<span style=\"color: #00ff00;\">✓ FOUND</span>' : '<span style=\"color: #ff6600;\">✗ NOT FOUND</span>') + '</p>';
+
+                // Test 3: Get Feed
+                const feedRes = await fetch(relay + '/xrpc/app.bsky.feed.getAuthorFeed?actor=' + handle + '&limit=1');
+                const feedOk = feedRes.ok;
+                output += '<p>[3/3] getAuthorFeed: ' + (feedOk ? '<span style=\"color: #00ff00;\">✓ FOUND</span>' : '<span style=\"color: #ff6600;\">✗ NOT FOUND</span>') + '</p>';
+
+                isIndexed = resolveOk || profileOk || feedOk;
+
+                output += '<p style=\"margin-top: 10px; color: #00ff00;\">---</p>';
+                if (isIndexed) {
+                    output += '<p style=\"color: #00ff00;\">✓ Status: INDEXED</p>';
+                    crawlSection.style.display = 'none';
+                } else {
+                    output += '<p style=\"color: #ff6600;\">✗ Status: NOT INDEXED</p>';
+                    output += '<p style=\"color: #00aa00;\">→ Crawl request needed</p>';
+                    crawlSection.style.display = 'block';
+                }
+            } catch (error) {
+                output += '<p style=\"color: #ff0000;\">ERROR: ' + error.message + '</p>';
+                crawlSection.style.display = 'block';
+            }
+
+            output += '</div>';
+            statusDiv.innerHTML = output;
+        }
+
+        async function requestCrawl() {
+            const messageDiv = document.getElementById('crawl-message');
+            const hostname = '{FULL_DOMAIN}';
+            const relay = document.getElementById('relay-url').value;
+
+            messageDiv.innerHTML = '<p style=\"color: #00aa00;\">$ Requesting crawl...</p>';
+
+            try {
+                const response = await fetch(relay + '/xrpc/com.atproto.sync.requestCrawl', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ hostname: hostname })
+                });
+
+                if (response.ok) {
+                    messageDiv.innerHTML = '<p style=\"color: #00ff00;\">✓ Crawl request successful</p>';
+                    setTimeout(checkRelayStatus, 2000);
+                } else {
+                    const errorText = await response.text();
+                    messageDiv.innerHTML = '<p style=\"color: #ff0000;\">✗ Crawl request failed (HTTP ' + response.status + '): ' + errorText + '</p>';
+                }
+            } catch (error) {
+                messageDiv.innerHTML = '<p style=\"color: #ff0000;\">✗ Error: ' + error.message + '</p>';
+            }
+        }
+
         async function loadPosts() {
             const container = document.getElementById('posts-container');
 
@@ -235,33 +316,6 @@ module {
                 container.innerHTML = html;
             } catch (error) {
                 container.innerHTML = '<p style=\"color: #ff0000;\">Error loading posts: ' + error.message + '</p>';
-            }
-        }
-
-        async function requestCrawl() {
-            const messageDiv = document.getElementById('crawl-message');
-            const hostname = document.getElementById('crawl-hostname').value;
-            const relay = document.getElementById('crawl-relay').value;
-
-            messageDiv.innerHTML = '<p style=\"color: #00aa00;\">Requesting crawl...</p>';
-
-            try {
-                const response = await fetch(relay + '/xrpc/com.atproto.sync.requestCrawl', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ hostname: hostname })
-                });
-
-                if (response.ok) {
-                    messageDiv.innerHTML = '<p style=\"color: #00ff00;\">✓ Crawl request successful</p>';
-                } else {
-                    const errorText = await response.text();
-                    messageDiv.innerHTML = '<p style=\"color: #ff0000;\">✗ Crawl request failed (HTTP ' + response.status + '): ' + errorText + '</p>';
-                }
-            } catch (error) {
-                messageDiv.innerHTML = '<p style=\"color: #ff0000;\">✗ Error: ' + error.message + '</p>';
             }
         }
 

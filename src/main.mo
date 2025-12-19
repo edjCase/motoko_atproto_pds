@@ -19,7 +19,6 @@ import Principal "mo:core@1/Principal";
 import CAR "mo:car@1";
 import CarUtil "CarUtil";
 import PdsInterface "./PdsInterface";
-import DateTime "mo:datetime@1/DateTime";
 import Repository "mo:atproto@0/Repository";
 import Option "mo:core@1/Option";
 import CertifiedAssets "mo:certified-assets@0";
@@ -30,16 +29,16 @@ import PureQueue "mo:core@1/pure/Queue";
 import RestApiRouter "./RestApiRouter";
 import Iter "mo:core@1/Iter";
 import Logging "mo:liminal@3/Logging";
-import Runtime "mo:core@1/Runtime";
 import Debug "mo:core@1/Debug";
 import Nat "mo:core@1/Nat";
 import Time "mo:core@1/Time";
 import Array "mo:core@1/Array";
 import Commit "mo:atproto@0/Commit";
 import Timer "mo:core/Timer";
+import PureMap "mo:core@1/pure/Map";
+import PermissionHandler "./Handlers/PermissionHandler";
 
 shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInterface.InstallArgs) : async PdsInterface.Actor = this {
-  var owner = Option.get(installArgs.owner, deployer);
 
   var repositoryMessageStableData : RepositoryMessageHandler.StableData = {
     messages = PureQueue.empty<RepositoryMessageHandler.QueueMessage>();
@@ -54,6 +53,11 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   };
   let maxLogCount = 10_000;
   let minConsoleLogLevel = #info; // Minimum log level to print to console/Debug.print
+
+  var permissionStableData : PermissionHandler.StableData = {
+    owner = Option.get(installArgs.owner, deployer);
+    delegates = PureMap.empty<Principal, PermissionHandler.DelegateInfo>();
+  };
   var stableLogData : PureQueue.Queue<LogEntry> = PureQueue.empty<LogEntry>();
   var repositoryStableData : ?RepositoryHandler.StableData = null;
   var serverInfoStableData : ?ServerInfoHandler.StableData = null;
@@ -63,6 +67,8 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   var certStore = CertifiedAssets.init_stable_store();
 
   transient let tidGenerator = TID.Generator();
+
+  transient let permissionHandler = PermissionHandler.Handler(permissionStableData);
 
   transient let messageHandler = RepositoryMessageHandler.Handler(repositoryMessageStableData);
 
@@ -210,6 +216,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   });
 
   system func preupgrade() {
+    permissionStableData := permissionHandler.toStableData();
     keyHandlerStableData := keyHandler.toStableData();
     serverInfoStableData := ?serverInfoHandler.toStableData();
     repositoryStableData := repositoryHandler.toStableData();
@@ -226,9 +233,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   };
 
   public shared query ({ caller }) func getLogs(limit : Nat, offset : Nat) : async [PdsInterface.LogEntry] {
-    if (caller != owner) {
-      return Runtime.trap("Only the owner can get the logs");
-    };
+    permissionHandler.validateOrTrap(#readLogs, caller);
     PureQueue.values(stableLogData)
     |> Iter.drop(_, offset)
     |> Iter.take(_, limit)
@@ -236,22 +241,24 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   };
 
   public shared ({ caller }) func clearLogs() : async Result.Result<(), Text> {
-    if (caller != owner) {
-      return #err("Only the owner can clear the logs");
-    };
+    permissionHandler.validateOrTrap(#deleteLogs, caller);
     stableLogData := PureQueue.empty<LogEntry>();
     #ok;
   };
 
   public shared query func getOwner() : async Principal {
-    owner;
+    permissionHandler.getOwner();
   };
 
   public shared ({ caller }) func setOwner(newOwner : Principal) : async Result.Result<(), Text> {
-    if (caller != owner) {
-      return #err("Only the owner can transfer ownership");
-    };
-    owner := newOwner;
+    permissionHandler.validateOrTrap(#modifyOwner, caller);
+    permissionHandler.setOwner(newOwner);
+    #ok;
+  };
+
+  public shared ({ caller }) func setDelegatePermissions(entity : Principal, permissions : PdsInterface.Permissions) : async Result.Result<(), Text> {
+    permissionHandler.validateIsOwnerOrTrap(caller);
+    permissionHandler.setPermissions(entity, permissions);
     #ok;
   };
 
@@ -260,9 +267,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   };
 
   public shared ({ caller }) func createRecord(request : PdsInterface.CreateRecordRequest) : async Result.Result<PdsInterface.CreateRecordResponse, Text> {
-    if (caller != owner) {
-      return #err("Only the owner can create records in this PDS");
-    };
+    permissionHandler.validateOrTrap(#createRecord, caller);
     let swapCommitCid = switch (request.swapCommit) {
       case (null) null;
       case (?cidText) {
@@ -299,9 +304,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   };
 
   public shared ({ caller }) func deleteRecord(request : PdsInterface.DeleteRecordRequest) : async Result.Result<PdsInterface.DeleteRecordResponse, Text> {
-    if (caller != owner) {
-      return #err("Only the owner can delete records in this PDS");
-    };
+    permissionHandler.validateOrTrap(#deleteRecord, caller);
     let swapCommitCid = switch (request.swapCommit) {
       case (null) null;
       case (?cidText) {
@@ -343,9 +346,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   };
 
   public shared ({ caller }) func putRecord(request : PdsInterface.PutRecordRequest) : async Result.Result<PdsInterface.PutRecordResponse, Text> {
-    if (caller != owner) {
-      return #err("Only the owner can put records in this PDS");
-    };
+    permissionHandler.validateOrTrap(#putRecord, caller);
     let swapCommitCid = switch (request.swapCommit) {
       case (null) null;
       case (?cidText) {
@@ -439,35 +440,45 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
     });
   };
 
-  public shared ({ caller }) func postToBluesky(message : Text) : async Result.Result<Text, Text> {
-    if (caller != owner) {
-      return #err("Only the owner can post to this PDS");
-    };
-    let now = DateTime.now();
-    let createRecordRequest : RepositoryHandler.CreateRecordRequest = {
-      collection = "app.bsky.feed.post";
-      rkey = null;
-      record = #map([
-        ("$type", #text("app.bsky.feed.post")),
-        ("text", #text(message)),
-        ("createdAt", #text(now.toTextFormatted(#iso))),
-      ]);
-      validate = null;
-      swapCommit = null;
-    };
-    switch (await* repositoryHandler.createRecord(createRecordRequest)) {
-      case (#ok(response)) #ok(CID.toText(response.cid));
-      case (#err(e)) #err("Failed to post to the feed: " # e);
-    };
-  };
-
-  public shared query func exportRepoData() : async Result.Result<PdsInterface.ExportData, Text> {
+  public shared query func exportRepository() : async Result.Result<PdsInterface.ExportData, Text> {
     let repository = repositoryHandler.get();
     let data = switch (Repository.exportData(repository, #full({ includeHistorical = true }))) {
       case (#ok(data)) data;
       case (#err(e)) return #err(e);
     };
-    #ok({
+
+    #ok(mapExportData(data));
+  };
+
+  public query func getInitializationStatus() : async PdsInterface.InitializationStatus {
+    switch (serverInfoHandler.getState()) {
+      case (#notInitialized(notInitialized)) #notInitialized(notInitialized);
+      case (#initializing(initializing)) #initializing(initializing);
+      case (#initialized(initialized)) #initialized({
+        initialized with
+        info = {
+          initialized.info with
+          plcIdentifier = DID.Plc.toText(initialized.info.plcIdentifier);
+        };
+      });
+    };
+  };
+
+  public query func icrc120_upgrade_finished() : async PdsInterface.ICRC120UpgradeFinishedResult {
+    switch (serverInfoHandler.getState()) {
+      case (#notInitialized({ previousAttempt })) {
+        switch (previousAttempt) {
+          case (null) #Failed((Nat.fromInt(Time.now()), "Unknown error occurred before initialization"));
+          case (?attempt) #Failed((Nat.fromInt(attempt.startTime), attempt.errorMessage));
+        };
+      };
+      case (#initializing(initializing)) #InProgress(Nat.fromInt(initializing.startTime));
+      case (#initialized(initialized)) #Success(Nat.fromInt(initialized.endTime));
+    };
+  };
+
+  private func mapExportData(data : Repository.ExportData) : PdsInterface.ExportData {
+    {
       commits = Array.map<(CID.CID, Commit.Commit), (Text, PdsInterface.Commit)>(
         data.commits,
         func((cid, commit)) {
@@ -492,159 +503,109 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
         data.nodes,
         func((cid, node)) = (CID.toText(cid), node),
       );
-    });
-  };
-
-  public query func getInitializationStatus() : async PdsInterface.InitializationStatus {
-    switch (serverInfoHandler.getState()) {
-      case (#notInitialized(notInitialized)) #notInitialized(notInitialized);
-      case (#initializing(initializing)) #initializing(initializing);
-      case (#initialized(initialized)) #initialized({
-        initialized with
-        info = {
-          initialized.info with
-          plcIdentifier = DID.Plc.toText(initialized.info.plcIdentifier);
-        };
-      });
     };
-  };
-
-  public shared ({ caller }) func reinitialize(requestOrNull : ?PdsInterface.InitializeRequest) : async Result.Result<(), Text> {
-    if (caller != owner) {
-      return #err("Only the owner can initialize the PDS");
-    };
-    await* reinitializeInternal(requestOrNull);
-  };
-
-  public shared ({ caller }) func createPlcDid(request : PdsInterface.CreatePlcRequest) : async Result.Result<Text, Text> {
-    if (caller != owner) {
-      return #err("Only the owner can create the PLC identifier");
-    };
-    switch (await* didDirectoryHandler.create(request)) {
-      case (#ok(did)) #ok(DID.Plc.toText(did));
-      case (#err(e)) #err("Failed to create PLC identifier: " # e);
-    };
-  };
-
-  public shared ({ caller }) func updatePlcDid(request : PdsInterface.UpdatePlcRequest) : async Result.Result<(), Text> {
-    if (caller != owner) {
-      return #err("Only the owner can update the PLC identifier");
-    };
-    let did = switch (DID.Plc.fromText(request.did)) {
-      case (#ok(did)) did;
-      case (#err(e)) return #err("Invalid PLC identifier '" # request.did # "': " # e);
-    };
-    let updateRequest = {
-      request with
-      did = did;
-    };
-    switch (await* didDirectoryHandler.update(updateRequest)) {
-      case (#ok) #ok;
-      case (#err(e)) #err("Failed to update PLC identifier: " # e);
-    };
-  };
-
-  public func icrc120_upgrade_finished() : async PdsInterface.ICRC120UpgradeFinishedResult {
-    switch (serverInfoHandler.getState()) {
-      case (#notInitialized({ previousAttempt })) {
-        switch (previousAttempt) {
-          case (null) #Failed((Nat.fromInt(Time.now()), "Unknown error occurred before initialization"));
-          case (?attempt) #Failed((Nat.fromInt(attempt.startTime), attempt.errorMessage));
-        };
-      };
-      case (#initializing(initializing)) #InProgress(Nat.fromInt(initializing.startTime));
-      case (#initialized(initialized)) #Success(Nat.fromInt(initialized.endTime));
-    };
-  };
-
-  private func reinitializeInternal(requestOrNull : ?PdsInterface.InitializeRequest) : async* Result.Result<(), Text> {
-    let previousAttemptOrNull = switch (serverInfoHandler.getState()) {
-      case (#notInitialized({ previousAttempt })) previousAttempt;
-      case (#initialized(_)) return #err("PDS is already initialized");
-      case (#initializing(_)) return #err("PDS is currently initializing");
-    };
-    let request : PdsInterface.InitializeRequest = switch (requestOrNull) {
-      case (null) {
-        let ?previousAttempt = previousAttemptOrNull else return #err("No previous initialization attempt found; please provide an InitializeRequest");
-        previousAttempt.request; // Reuse previous request if not specified
-      };
-      case (?request) request;
-    };
-    let startTime = Time.now();
-    serverInfoHandler.set(#initializing({ request = request; startTime = startTime }));
-    let (plcIndentifier, repository) : (DID.Plc.DID, ?Repository.Repository) = switch (request.plcKind) {
-      case (#new(createRequest)) {
-        switch (await* didDirectoryHandler.create(createRequest)) {
-          case (#ok(did)) (did, null);
-          case (#err(e)) return #err("Failed to create PLC identifier: " # e);
-        };
-      };
-      case (#id(id)) {
-        switch (DID.Plc.fromText(id)) {
-          case (#ok(did)) (did, null);
-          case (#err(e)) return #err("Invalid PLC identifier '" # id # "': " # e);
-        };
-      };
-      case (#car(carBlob)) {
-        switch (CAR.fromBytes(carBlob.vals())) {
-          case (#ok(parsedFile)) switch (CarUtil.toRepository(parsedFile)) {
-            case (#ok((did, repo))) (did, ?repo);
-            case (#err(error)) return #err("Failed to build repository from CAR file: " # error);
-          };
-          case (#err(error)) return #err("Failed to parse CAR file: " # error);
-        };
-      };
-    };
-    let newState : ServerInfoHandler.State = #initialized({
-      startTime = startTime;
-      endTime = Time.now();
-      request = request;
-      info = {
-        serviceSubdomain = request.serviceSubdomain;
-        hostname = request.hostname;
-        plcIdentifier = plcIndentifier;
-      };
-    });
-    serverInfoHandler.set(newState);
-    switch (await* repositoryHandler.initialize(repository)) {
-      case (#ok(_)) ();
-      case (#err(e)) return #err("Failed to create repository: " # e);
-    };
-    onIdentityChange({
-      did = #plc(plcIndentifier);
-      handle = ?request.hostname;
-    });
-    onAccountChange({
-      did = #plc(plcIndentifier);
-      active = true;
-      status = null;
-    });
-
-    // TODO can this be built into the WellKnownRouter instead?
-    let serverInfo = serverInfoHandler.get();
-    let icDomains = WellKnownRouter.getIcDomainsText(serverInfo);
-    let icDomainsBlob = Text.encodeUtf8(icDomains);
-    let icDomainsEndpoint = CertifiedAssets.Endpoint("/.well-known/ic-domains", ?icDomainsBlob).no_certification().no_request_certification();
-    StableCertifiedAssets.certify(certStore, icDomainsEndpoint);
-    #ok;
   };
 
   // Run timer immediately after initial installation
 
+  // Only run if not already initialized
+  // Assumes that if in any state other than #initialized, initialization has failed or not yet run
+  // TODO improve this logic to handle failed initialization attempts better
   switch (serverInfoHandler.getState()) {
-    // Only attempt initialization if not initialized and no previous attempt
-    case (#notInitialized({ previousAttempt = null })) {
+    case (#initialized(_)) ();
+    case (_) {
       ignore Timer.setTimer<system>(
         #seconds(0),
         func() : async () {
-          switch (await* reinitializeInternal(?installArgs)) {
+          // This function assumes that it only run
+          func initialize() : async* Result.Result<(), Text> {
+            let request : PdsInterface.InitializeRequest = installArgs;
+            let startTime = Time.now();
+            serverInfoHandler.set(
+              #initializing({
+                request = request;
+                startTime = startTime;
+                plc = null;
+              })
+            );
+            let (plcIndentifier, repository) : (DID.Plc.DID, ?Repository.Repository) = switch (request.plcKind) {
+              case (#new(createRequest)) {
+                switch (await* didDirectoryHandler.create(createRequest)) {
+                  case (#ok(did)) (did, null);
+                  case (#err(e)) return #err("Failed to create PLC identifier: " # e);
+                };
+              };
+              case (#id(id)) {
+                switch (DID.Plc.fromText(id)) {
+                  case (#ok(did)) (did, null);
+                  case (#err(e)) return #err("Invalid PLC identifier '" # id # "': " # e);
+                };
+              };
+              case (#car(carBlob)) {
+                switch (CAR.fromBytes(carBlob.vals())) {
+                  case (#ok(parsedFile)) switch (CarUtil.toRepository(parsedFile)) {
+                    case (#ok((did, repo))) (did, ?repo);
+                    case (#err(error)) return #err("Failed to build repository from CAR file: " # error);
+                  };
+                  case (#err(error)) return #err("Failed to parse CAR file: " # error);
+                };
+              };
+            };
+            serverInfoHandler.set(
+              #initializing({
+                startTime = startTime;
+                request = request;
+                plc = ?(plcIndentifier, repository);
+              })
+            );
+            switch (await* repositoryHandler.initialize(repository)) {
+              case (#ok(_)) ();
+              case (#err(e)) return #err("Failed to create repository: " # e);
+            };
+
+            onIdentityChange({
+              did = #plc(plcIndentifier);
+              handle = ?request.hostname;
+            });
+            onAccountChange({
+              did = #plc(plcIndentifier);
+              active = true;
+              status = null;
+            });
+
+            // TODO can this be built into the WellKnownRouter instead?
+            let serverInfo = serverInfoHandler.get();
+            let icDomains = WellKnownRouter.getIcDomainsText(serverInfo);
+            let icDomainsBlob = Text.encodeUtf8(icDomains);
+            let icDomainsEndpoint = CertifiedAssets.Endpoint("/.well-known/ic-domains", ?icDomainsBlob).no_certification().no_request_certification();
+            StableCertifiedAssets.certify(certStore, icDomainsEndpoint);
+
+            serverInfoHandler.set(
+              #initialized({
+                startTime = startTime;
+                endTime = Time.now();
+                request = request;
+                info = {
+                  serviceSubdomain = request.serviceSubdomain;
+                  hostname = request.hostname;
+                  plcIdentifier = plcIndentifier;
+                };
+              })
+            );
+
+            #ok;
+          };
+
+          switch (await* initialize()) {
             case (#ok) logger.log(#info, "PDS initialized successfully on install");
-            case (#err(e)) logger.log(#error, "Failed to initialize PDS on install: " # e);
+            case (#err(e)) {
+              logger.log(#error, "Failed to initialize PDS on install: " # e);
+
+            };
           };
         },
       );
     };
-    case (_) ();
   };
 
 };

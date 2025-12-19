@@ -7,7 +7,6 @@ module {
   public type Actor = actor {
     getInitializationStatus : query () -> async InitializationStatus;
 
-    reinitialize : (requestOrNull : ?InitializeRequest) -> async Result.Result<(), Text>;
     getLogs : query (limit : Nat, offset : Nat) -> async [LogEntry];
     clearLogs : () -> async Result.Result<(), Text>;
 
@@ -15,17 +14,14 @@ module {
     setOwner : (newOwner : Principal) -> async Result.Result<(), Text>;
     getDeployer : query () -> async Principal;
 
-    postToBluesky : (message : Text) -> async Result.Result<Text, Text>;
-
     createRecord : (request : CreateRecordRequest) -> async Result.Result<CreateRecordResponse, Text>;
     deleteRecord : (request : DeleteRecordRequest) -> async Result.Result<DeleteRecordResponse, Text>;
     putRecord : (request : PutRecordRequest) -> async Result.Result<PutRecordResponse, Text>;
     getRecord : query (request : GetRecordRequest) -> async Result.Result<GetRecordResponse, Text>;
     listRecords : query (request : ListRecordsRequest) -> async Result.Result<ListRecordsResponse, Text>;
-    exportRepoData : query () -> async Result.Result<ExportData, Text>;
+    exportRepository : query () -> async Result.Result<ExportData, Text>;
 
-    createPlcDid : (request : CreatePlcRequest) -> async Result.Result<Text, Text>;
-    updatePlcDid : (request : UpdatePlcRequest) -> async Result.Result<(), Text>;
+    icrc120_upgrade_finished : query () -> async ICRC120UpgradeFinishedResult;
   };
 
   public type InitializeRequest = {

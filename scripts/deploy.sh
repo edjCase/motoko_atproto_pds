@@ -45,20 +45,22 @@ case "${network}" in
         ;;
 esac
 
+
+# For local, we need to get canister ID first for the hostname
+if [ "${network}" = "local" ]; then
+    canister_id=$(dfx canister id pds --network "${network}" 2>/dev/null || dfx canister create pds --network "${network}" --no-wallet | grep -o 'canister id: [^ ]*' | awk '{print $3}')
+    hostname="${canister_id}.localhost"
+    fullDomain="${hostname}"
+else
+    fullDomain="${serviceSubdomain}.${hostname}"
+fi
+
 # Build PLC variant
 if [ "$plc_did" = "new" ]; then
     echo "Deploying PDS to network '${network}' using mode '${mode}' with new DID..."
-    # For local, we need to get canister ID first for the hostname
-    if [ "${network}" = "local" ]; then
-        canister_id=$(dfx canister id pds --network "${network}" 2>/dev/null || dfx canister create pds --network "${network}" --no-wallet | grep -o 'canister id: [^ ]*' | awk '{print $3}')
-        hostname="${canister_id}.localhost"
-        fullDomain="${hostname}"
-    else
-        fullDomain="${serviceSubdomain}.${hostname}"
-    fi
     
     # Create new PLC identity
-    plc_variant="variant { new = record { alsoKnownAs = vec { \"at://${hostname}\" }; services = vec { record { id = \"atproto_pds\"; type_ = \"AtprotoPersonalDataServer\"; endpoint = \"https://${fullDomain}\" } } } }"
+    plc_variant="variant { new = record { alsoKnownAs = vec { \"at://${hostname}\" }; services = vec { record { id = \"atproto_pds\"; \"type\" = \"AtprotoPersonalDataServer\"; endpoint = \"https://${fullDomain}\" } } } }"
 else
     echo "Deploying PDS to network '${network}' using mode '${mode}' with existing DID: ${plc_did}..."
     # Use provided PLC DID
@@ -77,4 +79,4 @@ echo "$response"
 # Extract canister ID
 canister_id=$(dfx canister id pds --network "${network}")
 
-echo "Successfully deployed PDS canister with ID: ${canister_id} at: ${hostname}${port}"
+echo "Successfully deployed PDS canister with ID: ${canister_id} at: ${fullDomain}${port}"
