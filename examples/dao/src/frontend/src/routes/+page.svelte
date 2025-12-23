@@ -11,7 +11,11 @@
     let loading = false;
     let error = null;
     let successMessage = null;
-    let activeTab = "proposals"; // "proposals" or "create"
+    let activeTab = "proposals"; // "proposals", "create", or "delegates"
+
+    // Delegates state
+    let delegates = null;
+    let delegatesLoading = false;
 
     // Proposal creation form state
     let proposalType = "postToBluesky";
@@ -25,6 +29,21 @@
     // Upgrade-specific options
     let wasmMemoryPersistence = "keep"; // "keep" or "replace"
     let skipPreUpgrade = false;
+    // Set Delegate Permissions
+    let delegateId = "";
+    let delegatePermissions = {
+        readLogs: false,
+        deleteLogs: false,
+        createRecord: false,
+        putRecord: false,
+        deleteRecord: false,
+        modifyOwner: false,
+    };
+    // Custom Call
+    let customCallCanisterId = "";
+    let customCallMethod = "";
+    let customCallArgs = "";
+    let customCallArgsFormat = "candidText"; // "candidText" or "raw"
     // NewCanisterSettings
     let initialCycleBalance = "1.0"; // In trillion cycles
     let freezingThreshold = "";
@@ -134,6 +153,26 @@
         } catch (e) {
             console.error("Error loading PDS canister ID:", e);
             configuredPdsCanisterId = null;
+        }
+    }
+
+    async function loadDelegates() {
+        if (!configuredPdsCanisterId) {
+            delegates = null;
+            return;
+        }
+
+        delegatesLoading = true;
+        error = null;
+        try {
+            const result = await backend.getDelegates();
+            delegates = result;
+        } catch (e) {
+            console.error("Error loading delegates:", e);
+            error = `Failed to load delegates: ${e.message || e}`;
+            delegates = null;
+        } finally {
+            delegatesLoading = false;
         }
     }
 
@@ -392,6 +431,76 @@
                 );
             }
 
+            if (proposalType === "setDelegatePermissions") {
+                if (!delegateId.trim()) {
+                    error = "Delegate Principal ID cannot be empty";
+                    return;
+                }
+                try {
+                    proposalContent = {
+                        setDelegatePermissions: {
+                            delegateId: Principal.fromText(delegateId),
+                            permissions: delegatePermissions,
+                        },
+                    };
+                } catch (e) {
+                    error = "Invalid Principal ID format";
+                    return;
+                }
+            }
+
+            if (proposalType === "customCall") {
+                if (!customCallCanisterId.trim()) {
+                    error = "Canister ID cannot be empty";
+                    return;
+                }
+                if (!customCallMethod.trim()) {
+                    error = "Method name cannot be empty";
+                    return;
+                }
+                if (!customCallArgs.trim()) {
+                    error = "Arguments cannot be empty";
+                    return;
+                }
+
+                // Create args based on format
+                let argsValue;
+                if (customCallArgsFormat === "candidText") {
+                    argsValue = {
+                        candidText: customCallArgs,
+                    };
+                } else {
+                    let argsBytes;
+                    try {
+                        argsBytes = new Uint8Array(
+                            customCallArgs
+                                .replace(/\s/g, "")
+                                .match(/.{1,2}/g)
+                                .map((byte) => parseInt(byte, 16))
+                        );
+                    } catch (e) {
+                        error = "Invalid hex format for arguments.";
+                        return;
+                    }
+                    argsValue = {
+                        raw: Array.from(argsBytes),
+                    };
+                }
+
+                try {
+                    proposalContent = {
+                        customCall: {
+                            canisterId: Principal.fromText(customCallCanisterId),
+                            method: customCallMethod,
+                            args: argsValue,
+                        },
+                    };
+                } catch (e) {
+                    error = "Invalid Canister ID format";
+                    return;
+                }
+            }
+
             loading = true;
             const result = await backend.createProposal(proposalContent);
 
@@ -407,6 +516,19 @@
                 initArgsFormat = "candidText";
                 wasmMemoryPersistence = "keep";
                 skipPreUpgrade = false;
+                delegateId = "";
+                delegatePermissions = {
+                    readLogs: false,
+                    deleteLogs: false,
+                    createRecord: false,
+                    putRecord: false,
+                    deleteRecord: false,
+                    modifyOwner: false,
+                };
+                customCallCanisterId = "";
+                customCallMethod = "";
+                customCallArgs = "";
+                customCallArgsFormat = "candidText";
                 initialCycleBalance = "1.0";
                 freezingThreshold = "";
                 wasmMemoryThreshold = "";
@@ -639,6 +761,18 @@
             >
                 Create Proposal
             </button>
+            {#if configuredPdsCanisterId}
+                <button
+                    class="tab"
+                    class:active={activeTab === "delegates"}
+                    on:click={() => {
+                        activeTab = "delegates";
+                        loadDelegates();
+                    }}
+                >
+                    Delegates
+                </button>
+            {/if}
         </div>
 
         <!-- Proposals Tab -->
@@ -833,6 +967,12 @@
                                 >Set PDS Canister</option
                             >
                             <option value="installPds">Install PDS</option>
+                            <option value="setDelegatePermissions"
+                                >Set Delegate Permissions</option
+                            >
+                            <option value="customCall"
+                                >Custom Call</option
+                            >
                         </select>
                     </div>
 
@@ -1181,6 +1321,196 @@
                         {/if}
                     {/if}
 
+                    {#if proposalType === "customCall"}
+                        <div class="form-group">
+                            <label for="customCallCanisterId">Canister ID:</label>
+                            <input
+                                type="text"
+                                id="customCallCanisterId"
+                                bind:value={customCallCanisterId}
+                                placeholder="e.g., rrkah-fqaaa-aaaaa-aaaaq-cai"
+                                disabled={!isAuthenticated || !isMember}
+                            />
+                            <small style="color: #00aa00;"
+                                >Target canister to call</small
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="customCallMethod">Method Name:</label>
+                            <input
+                                type="text"
+                                id="customCallMethod"
+                                bind:value={customCallMethod}
+                                placeholder="e.g., transfer"
+                                disabled={!isAuthenticated || !isMember}
+                            />
+                            <small style="color: #00aa00;"
+                                >Name of the method to call</small
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="customCallArgsFormat">Arguments Format:</label
+                            >
+                            <select
+                                id="customCallArgsFormat"
+                                bind:value={customCallArgsFormat}
+                                disabled={!isAuthenticated || !isMember}
+                            >
+                                <option value="candidText">Candid Text</option>
+                                <option value="raw">Raw (Hex-encoded)</option>
+                            </select>
+                            <small style="color: #00aa00;">
+                                {#if customCallArgsFormat === "candidText"}
+                                    Enter as Candid text - will be encoded to binary
+                                {:else}
+                                    Enter as hex bytes - will be converted to binary
+                                {/if}
+                            </small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="customCallArgs">
+                                {#if customCallArgsFormat === "candidText"}
+                                    Arguments (Candid Text):
+                                {:else}
+                                    Arguments (Hex):
+                                {/if}
+                            </label>
+                            <textarea
+                                id="customCallArgs"
+                                bind:value={customCallArgs}
+                                placeholder={customCallArgsFormat === "candidText"
+                                    ? 'e.g., (record { to = principal "aaaaa-aa"; amount = 1000 })'
+                                    : "e.g., 4449444c..."}
+                                disabled={!isAuthenticated || !isMember}
+                            ></textarea>
+                            <small style="color: #00aa00;">
+                                {#if customCallArgsFormat === "candidText"}
+                                    Enter method arguments as Candid text
+                                {:else}
+                                    Enter method arguments as hex string
+                                {/if}
+                            </small>
+                        </div>
+                    {/if}
+
+                    {#if proposalType === "setDelegatePermissions"}
+                        <div class="form-group">
+                            <label for="delegateId"
+                                >Delegate Principal ID:</label
+                            >
+                            <input
+                                type="text"
+                                id="delegateId"
+                                bind:value={delegateId}
+                                placeholder="e.g., aaaaa-aa..."
+                                disabled={!isAuthenticated || !isMember}
+                            />
+                            <small style="color: #00aa00;"
+                                >Principal ID of the delegate to grant
+                                permissions</small
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label>Delegate Permissions:</label>
+                            <div
+                                style="display: flex; flex-direction: column; gap: 8px; padding: 10px; background: rgba(0, 255, 0, 0.05); border: 1px solid #00aa00; border-radius: 3px;"
+                            >
+                                <label
+                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        bind:checked={
+                                            delegatePermissions.readLogs
+                                        }
+                                        disabled={!isAuthenticated || !isMember}
+                                        style="cursor: pointer;"
+                                    />
+                                    <span>Read Logs - View PDS logs</span>
+                                </label>
+                                <label
+                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        bind:checked={
+                                            delegatePermissions.deleteLogs
+                                        }
+                                        disabled={!isAuthenticated || !isMember}
+                                        style="cursor: pointer;"
+                                    />
+                                    <span>Delete Logs - Clear PDS logs</span>
+                                </label>
+                                <label
+                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        bind:checked={
+                                            delegatePermissions.createRecord
+                                        }
+                                        disabled={!isAuthenticated || !isMember}
+                                        style="cursor: pointer;"
+                                    />
+                                    <span
+                                        >Create Record - Create new records in
+                                        the repository</span
+                                    >
+                                </label>
+                                <label
+                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        bind:checked={
+                                            delegatePermissions.putRecord
+                                        }
+                                        disabled={!isAuthenticated || !isMember}
+                                        style="cursor: pointer;"
+                                    />
+                                    <span
+                                        >Put Record - Update existing records</span
+                                    >
+                                </label>
+                                <label
+                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        bind:checked={
+                                            delegatePermissions.deleteRecord
+                                        }
+                                        disabled={!isAuthenticated || !isMember}
+                                        style="cursor: pointer;"
+                                    />
+                                    <span
+                                        >Delete Record - Remove records from the
+                                        repository</span
+                                    >
+                                </label>
+                                <label
+                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        bind:checked={
+                                            delegatePermissions.modifyOwner
+                                        }
+                                        disabled={!isAuthenticated || !isMember}
+                                        style="cursor: pointer;"
+                                    />
+                                    <span
+                                        >Modify Owner - Change the PDS owner</span
+                                    >
+                                </label>
+                            </div>
+                        </div>
+                    {/if}
+
                     <button
                         type="submit"
                         class="primary"
@@ -1189,6 +1519,203 @@
                         {loading ? "Creating..." : "Create Proposal"}
                     </button>
                 </form>
+            </div>
+        {/if}
+
+        <!-- Delegates Tab -->
+        {#if activeTab === "delegates"}
+            <div class="section">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;"
+                >
+                    <h2>PDS Delegates</h2>
+                    <button
+                        class="primary"
+                        on:click={loadDelegates}
+                        disabled={delegatesLoading}
+                    >
+                        {delegatesLoading ? "Refreshing..." : "🔄 Refresh"}
+                    </button>
+                </div>
+
+                {#if !configuredPdsCanisterId}
+                    <div class="empty-state">
+                        <p>
+                            PDS Canister is not configured. Create a proposal to
+                            set or install a PDS canister first.
+                        </p>
+                    </div>
+                {:else if delegatesLoading && delegates === null}
+                    <div class="loading">
+                        Loading delegates<span class="blink">...</span>
+                    </div>
+                {:else if delegates === null}
+                    <div class="empty-state">
+                        <p>
+                            Unable to load delegates. The PDS canister may not
+                            be accessible.
+                        </p>
+                    </div>
+                {:else if delegates.length === 0}
+                    <div class="empty-state">
+                        <p>No delegates configured for this PDS canister.</p>
+                        <p style="margin-top: 10px; color: #00aa00;">
+                            Create a proposal to set delegate permissions.
+                        </p>
+                    </div>
+                {:else}
+                    <div>
+                        {#each delegates as delegate (delegate.id.toText())}
+                            <div class="proposal-card">
+                                <div class="proposal-header">
+                                    <div>
+                                        <div
+                                            class="proposal-title"
+                                            style="font-size: 1em;"
+                                        >
+                                            Principal
+                                        </div>
+                                        <div
+                                            style="font-family: monospace; color: #00aaff; font-size: 0.9em; word-break: break-all;"
+                                        >
+                                            {delegate.id.toText()}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="margin-top: 15px;">
+                                    <div
+                                        style="color: #00ff00; font-weight: bold; margin-bottom: 8px;"
+                                    >
+                                        Permissions:
+                                    </div>
+                                    <div
+                                        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px;"
+                                    >
+                                        <div
+                                            style="padding: 5px 10px; background: {delegate
+                                                .permissions.readLogs
+                                                ? 'rgba(0, 255, 0, 0.1)'
+                                                : 'rgba(128, 128, 128, 0.1)'}; border: 1px solid {delegate
+                                                .permissions.readLogs
+                                                ? '#00ff00'
+                                                : '#666'}; border-radius: 3px;"
+                                        >
+                                            <span
+                                                style="color: {delegate
+                                                    .permissions.readLogs
+                                                    ? '#00ff00'
+                                                    : '#888'};"
+                                                >{delegate.permissions.readLogs
+                                                    ? "✓"
+                                                    : "✗"}</span
+                                            > Read Logs
+                                        </div>
+                                        <div
+                                            style="padding: 5px 10px; background: {delegate
+                                                .permissions.deleteLogs
+                                                ? 'rgba(0, 255, 0, 0.1)'
+                                                : 'rgba(128, 128, 128, 0.1)'}; border: 1px solid {delegate
+                                                .permissions.deleteLogs
+                                                ? '#00ff00'
+                                                : '#666'}; border-radius: 3px;"
+                                        >
+                                            <span
+                                                style="color: {delegate
+                                                    .permissions.deleteLogs
+                                                    ? '#00ff00'
+                                                    : '#888'};"
+                                                >{delegate.permissions
+                                                    .deleteLogs
+                                                    ? "✓"
+                                                    : "✗"}</span
+                                            > Delete Logs
+                                        </div>
+                                        <div
+                                            style="padding: 5px 10px; background: {delegate
+                                                .permissions.createRecord
+                                                ? 'rgba(0, 255, 0, 0.1)'
+                                                : 'rgba(128, 128, 128, 0.1)'}; border: 1px solid {delegate
+                                                .permissions.createRecord
+                                                ? '#00ff00'
+                                                : '#666'}; border-radius: 3px;"
+                                        >
+                                            <span
+                                                style="color: {delegate
+                                                    .permissions.createRecord
+                                                    ? '#00ff00'
+                                                    : '#888'};"
+                                                >{delegate.permissions
+                                                    .createRecord
+                                                    ? "✓"
+                                                    : "✗"}</span
+                                            > Create Record
+                                        </div>
+                                        <div
+                                            style="padding: 5px 10px; background: {delegate
+                                                .permissions.putRecord
+                                                ? 'rgba(0, 255, 0, 0.1)'
+                                                : 'rgba(128, 128, 128, 0.1)'}; border: 1px solid {delegate
+                                                .permissions.putRecord
+                                                ? '#00ff00'
+                                                : '#666'}; border-radius: 3px;"
+                                        >
+                                            <span
+                                                style="color: {delegate
+                                                    .permissions.putRecord
+                                                    ? '#00ff00'
+                                                    : '#888'};"
+                                                >{delegate.permissions.putRecord
+                                                    ? "✓"
+                                                    : "✗"}</span
+                                            > Put Record
+                                        </div>
+                                        <div
+                                            style="padding: 5px 10px; background: {delegate
+                                                .permissions.deleteRecord
+                                                ? 'rgba(0, 255, 0, 0.1)'
+                                                : 'rgba(128, 128, 128, 0.1)'}; border: 1px solid {delegate
+                                                .permissions.deleteRecord
+                                                ? '#00ff00'
+                                                : '#666'}; border-radius: 3px;"
+                                        >
+                                            <span
+                                                style="color: {delegate
+                                                    .permissions.deleteRecord
+                                                    ? '#00ff00'
+                                                    : '#888'};"
+                                                >{delegate.permissions
+                                                    .deleteRecord
+                                                    ? "✓"
+                                                    : "✗"}</span
+                                            > Delete Record
+                                        </div>
+                                        <div
+                                            style="padding: 5px 10px; background: {delegate
+                                                .permissions.modifyOwner
+                                                ? 'rgba(0, 255, 0, 0.1)'
+                                                : 'rgba(128, 128, 128, 0.1)'}; border: 1px solid {delegate
+                                                .permissions.modifyOwner
+                                                ? '#00ff00'
+                                                : '#666'}; border-radius: 3px;"
+                                        >
+                                            <span
+                                                style="color: {delegate
+                                                    .permissions.modifyOwner
+                                                    ? '#00ff00'
+                                                    : '#888'};"
+                                                >{delegate.permissions
+                                                    .modifyOwner
+                                                    ? "✓"
+                                                    : "✗"}</span
+                                            > Modify Owner
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
             </div>
         {/if}
     </div>

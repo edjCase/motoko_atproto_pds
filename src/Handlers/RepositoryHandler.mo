@@ -254,7 +254,7 @@ module {
 
           let newBlocks = switch (CarUtil.fromRepository(repository, #full({ includeHistorical = false }))) {
             case (#ok(data)) data;
-            case (#err(e)) Runtime.trap("Failed to export repository data for event: " # e);
+            case (#err(e)) return #err("Failed to export repository data for empty repository: " # e);
           };
           let newBlocksBlob = Blob.fromArray(Car.toBytes(newBlocks));
 

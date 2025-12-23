@@ -5,6 +5,7 @@ import Error "mo:core@1/Error";
 import PdsInterface "../../../../../src/PdsInterface";
 import List "mo:core@1/List";
 import Principal "mo:core@1/Principal";
+import DateTime "mo:datetime@1/DateTime";
 
 module {
   public type ProposalData = {
@@ -19,10 +20,23 @@ module {
       // Create the PDS actor reference
       let pdsActor = actor (Principal.toText(pdsCanisterId)) : PdsInterface.Actor;
 
+      let now = DateTime.now();
+      let createRecordRequest : PdsInterface.CreateRecordRequest = {
+        collection = "app.bsky.feed.post";
+        rkey = null;
+        record = #map([
+          ("$type", #text("app.bsky.feed.post")),
+          ("text", #text(content)),
+          ("createdAt", #text(now.toTextFormatted(#iso))),
+        ]);
+        validate = null;
+        swapCommit = null;
+      };
+
       // Make the post to AT Protocol
-      switch (await pdsActor.postToBluesky(content)) {
+      switch (await pdsActor.createRecord(createRecordRequest)) {
         case (#ok(_)) #ok;
-        case (#err(error)) #err("Failed to post to AT Protocol: " # error);
+        case (#err(error)) #err("Failed to post to pds: " # error);
       };
     } catch (error) {
       #err("Error calling PDS canister: " # Error.message(error));

@@ -1,0 +1,216 @@
+export const idlFactory = ({ IDL }) => {
+  const ICRC16 = IDL.Rec();
+  const Result = IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text });
+  const AddWasmChunkRequest = IDL.Record({
+    'wasmHash' : IDL.Vec(IDL.Nat8),
+    'chunk' : IDL.Vec(IDL.Nat8),
+    'index' : IDL.Nat,
+  });
+  const LogVisibility = IDL.Variant({
+    'controllers' : IDL.Null,
+    'allowedViewers' : IDL.Vec(IDL.Principal),
+    'public' : IDL.Null,
+  });
+  const NewCanisterSettings = IDL.Record({
+    'controllers' : IDL.Opt(IDL.Vec(IDL.Principal)),
+    'freezingThreshold' : IDL.Opt(IDL.Nat),
+    'wasmMemoryLimit' : IDL.Opt(IDL.Nat),
+    'logVisibility' : IDL.Opt(LogVisibility),
+    'memoryAllocation' : IDL.Opt(IDL.Nat),
+    'computeAllocation' : IDL.Opt(IDL.Nat),
+    'wasmMemoryThreshold' : IDL.Opt(IDL.Nat),
+    'reservedCyclesLimit' : IDL.Opt(IDL.Nat),
+  });
+  const ProposalData__1 = IDL.Record({
+    'initArgs' : IDL.Variant({
+      'raw' : IDL.Vec(IDL.Nat8),
+      'candidText' : IDL.Text,
+    }),
+    'wasmHash' : IDL.Vec(IDL.Nat8),
+    'kind' : IDL.Variant({
+      'reinstall' : IDL.Record({ 'canisterId' : IDL.Principal }),
+      'upgrade' : IDL.Record({
+        'skipPreUpgrade' : IDL.Bool,
+        'wasmMemoryPersistence' : IDL.Variant({
+          'keep' : IDL.Null,
+          'replace' : IDL.Null,
+        }),
+        'canisterId' : IDL.Principal,
+      }),
+      'install' : IDL.Record({
+        'kind' : IDL.Variant({
+          'existingCanister' : IDL.Principal,
+          'newCanister' : IDL.Record({
+            'initialCycleBalance' : IDL.Nat,
+            'settings' : NewCanisterSettings,
+          }),
+        }),
+      }),
+    }),
+  });
+  const Permissions = IDL.Record({
+    'createRecord' : IDL.Bool,
+    'deleteRecord' : IDL.Bool,
+    'readLogs' : IDL.Bool,
+    'putRecord' : IDL.Bool,
+    'deleteLogs' : IDL.Bool,
+    'modifyOwner' : IDL.Bool,
+  });
+  const ProposalData__3 = IDL.Record({
+    'permissions' : Permissions,
+    'delegateId' : IDL.Principal,
+  });
+  const ProposalData__4 = IDL.Record({ 'canisterId' : IDL.Principal });
+  const ProposalData__2 = IDL.Record({ 'message' : IDL.Text });
+  const ProposalData = IDL.Record({
+    'method' : IDL.Text,
+    'args' : IDL.Variant({
+      'raw' : IDL.Vec(IDL.Nat8),
+      'candidText' : IDL.Text,
+    }),
+    'canisterId' : IDL.Principal,
+  });
+  const ProposalKind = IDL.Variant({
+    'installPds' : ProposalData__1,
+    'setDelegatePermissions' : ProposalData__3,
+    'setPdsCanister' : ProposalData__4,
+    'postToBluesky' : ProposalData__2,
+    'customCall' : ProposalData,
+  });
+  const Result_1 = IDL.Variant({ 'ok' : IDL.Nat, 'err' : IDL.Text });
+  const Delegate = IDL.Record({
+    'id' : IDL.Principal,
+    'permissions' : Permissions,
+  });
+  const Member = IDL.Record({ 'id' : IDL.Principal, 'votingPower' : IDL.Nat });
+  const Time = IDL.Int;
+  const ProposalStatus = IDL.Variant({
+    'failedToExecute' : IDL.Record({
+      'executingTime' : Time,
+      'error' : IDL.Text,
+      'failedTime' : Time,
+      'choice' : IDL.Opt(IDL.Bool),
+    }),
+    'open' : IDL.Null,
+    'executing' : IDL.Record({
+      'executingTime' : Time,
+      'choice' : IDL.Opt(IDL.Bool),
+    }),
+    'executed' : IDL.Record({
+      'executingTime' : Time,
+      'choice' : IDL.Opt(IDL.Bool),
+      'executedTime' : Time,
+    }),
+  });
+  const ProposalDetail = IDL.Record({
+    'id' : IDL.Nat,
+    'status' : ProposalStatus,
+    'title' : IDL.Text,
+    'votesAgainst' : IDL.Nat,
+    'timeStart' : IDL.Int,
+    'votesFor' : IDL.Nat,
+    'totalVotingPower' : IDL.Nat,
+    'description' : IDL.Text,
+    'timeEnd' : IDL.Opt(IDL.Int),
+  });
+  const GetProposalsResponse = IDL.Record({
+    'data' : IDL.Vec(ProposalDetail),
+    'count' : IDL.Nat,
+    'totalCount' : IDL.Nat,
+    'offset' : IDL.Nat,
+  });
+  const Vote = IDL.Record({
+    'votingPower' : IDL.Nat,
+    'choice' : IDL.Opt(IDL.Bool),
+  });
+  const OrchestrationEventType = IDL.Variant({
+    'upgrade_initiated' : IDL.Null,
+    'snapshot_requested' : IDL.Null,
+    'snapshot_revert_requested' : IDL.Null,
+    'snapshot_cleaned' : IDL.Null,
+    'upgrade_finished' : IDL.Null,
+    'configuration_changed' : IDL.Null,
+    'snapshot_reverted' : IDL.Null,
+    'canister_started' : IDL.Null,
+    'snapshot_created' : IDL.Null,
+    'canister_stopped' : IDL.Null,
+  });
+  const GetEventsFilter = IDL.Record({
+    'event_types' : IDL.Opt(IDL.Vec(OrchestrationEventType)),
+    'end_time' : IDL.Opt(IDL.Nat),
+    'start_time' : IDL.Opt(IDL.Nat),
+    'canister' : IDL.Opt(IDL.Principal),
+  });
+  const ICRC120GetEventsFilter = IDL.Record({
+    'prev' : IDL.Opt(IDL.Vec(IDL.Nat8)),
+    'take' : IDL.Opt(IDL.Nat),
+    'filter' : IDL.Opt(GetEventsFilter),
+  });
+  const ICRC16Property = IDL.Record({
+    'value' : ICRC16,
+    'name' : IDL.Text,
+    'immutable' : IDL.Bool,
+  });
+  ICRC16.fill(
+    IDL.Variant({
+      'Int' : IDL.Int,
+      'Map' : IDL.Vec(IDL.Tuple(IDL.Text, ICRC16)),
+      'Nat' : IDL.Nat,
+      'Set' : IDL.Vec(ICRC16),
+      'Nat16' : IDL.Nat16,
+      'Nat32' : IDL.Nat32,
+      'Nat64' : IDL.Nat64,
+      'Blob' : IDL.Vec(IDL.Nat8),
+      'Bool' : IDL.Bool,
+      'Int8' : IDL.Int8,
+      'Nat8' : IDL.Nat8,
+      'Nats' : IDL.Vec(IDL.Nat),
+      'Text' : IDL.Text,
+      'Bytes' : IDL.Vec(IDL.Nat8),
+      'Int16' : IDL.Int16,
+      'Int32' : IDL.Int32,
+      'Int64' : IDL.Int64,
+      'Option' : IDL.Opt(ICRC16),
+      'Floats' : IDL.Vec(IDL.Float64),
+      'Float' : IDL.Float64,
+      'Principal' : IDL.Principal,
+      'Array' : IDL.Vec(ICRC16),
+      'ValueMap' : IDL.Vec(IDL.Tuple(ICRC16, ICRC16)),
+      'Class' : IDL.Vec(ICRC16Property),
+    })
+  );
+  const ICRC120OrchestrationEvent = IDL.Record({
+    'id' : IDL.Nat,
+    'canister_id' : IDL.Principal,
+    'timestamp' : IDL.Nat,
+    'details' : ICRC16,
+    'event_type' : OrchestrationEventType,
+  });
+  const Dao = IDL.Service({
+    'addMember' : IDL.Func([IDL.Principal], [Result], []),
+    'addWasmChunk' : IDL.Func([AddWasmChunkRequest], [Result], []),
+    'createProposal' : IDL.Func([ProposalKind], [Result_1], []),
+    'finalizeWasmChunks' : IDL.Func([IDL.Vec(IDL.Nat8)], [Result], []),
+    'getDelegates' : IDL.Func([], [IDL.Vec(Delegate)], ['composite_query']),
+    'getMember' : IDL.Func([IDL.Principal], [IDL.Opt(Member)], ['query']),
+    'getMembers' : IDL.Func([], [IDL.Vec(Member)], ['query']),
+    'getPdsCanisterId' : IDL.Func([], [IDL.Opt(IDL.Principal)], ['query']),
+    'getProposal' : IDL.Func([IDL.Nat], [IDL.Opt(ProposalDetail)], ['query']),
+    'getProposals' : IDL.Func(
+        [IDL.Nat, IDL.Nat],
+        [GetProposalsResponse],
+        ['query'],
+      ),
+    'getVote' : IDL.Func([IDL.Nat, IDL.Principal], [IDL.Opt(Vote)], ['query']),
+    'getWasmHashes' : IDL.Func([], [IDL.Vec(IDL.Text)], []),
+    'icrc120_get_events' : IDL.Func(
+        [ICRC120GetEventsFilter],
+        [IDL.Vec(ICRC120OrchestrationEvent)],
+        ['query'],
+      ),
+    'removeMember' : IDL.Func([IDL.Principal], [Result], []),
+    'vote' : IDL.Func([IDL.Nat, IDL.Bool], [Result], []),
+  });
+  return Dao;
+};
+export const init = ({ IDL }) => { return []; };

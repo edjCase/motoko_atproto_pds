@@ -1,6 +1,7 @@
 import PureMap "mo:core@1/pure/Map";
 import Runtime "mo:core@1/Runtime";
 import Principal "mo:core@1/Principal";
+import Iter "mo:core@1/Iter";
 
 module {
 
@@ -11,6 +12,10 @@ module {
 
     public type DelegateInfo = {
         permissions : Permissions;
+    };
+
+    public type Delegate = DelegateInfo and {
+        id : Principal;
     };
 
     public type Permissions = {
@@ -36,7 +41,7 @@ module {
         var delegates = stableData.delegates;
 
         public func authorizeActionOrTrap(entity : Principal, action : Action) : () {
-            if (not validateAction(entity, action)) {
+            if (not isActionAuthorized(entity, action)) {
                 Runtime.trap("Permission denied for action '" # debug_show (action) # "' for entity '" # debug_show (entity) # "'.");
             };
         };
@@ -62,6 +67,10 @@ module {
             };
         };
 
+        public func isOwner(entity : Principal) : Bool {
+            return entity == owner;
+        };
+
         public func setPermissions(entity : Principal, permissions : Permissions) : () {
             delegates := PureMap.add(
                 delegates,
@@ -75,6 +84,18 @@ module {
 
         public func getOwner() : Principal {
             return owner;
+        };
+
+        public func getDelegates() : [Delegate] {
+            PureMap.entries(delegates)
+            |> Iter.map(
+                _,
+                func((id, info) : (Principal, DelegateInfo)) : Delegate = {
+                    id = id;
+                    permissions = info.permissions;
+                },
+            )
+            |> Iter.toArray(_);
         };
 
         public func setOwner(newOwner : Principal) : () {

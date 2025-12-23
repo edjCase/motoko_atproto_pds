@@ -1,0 +1,247 @@
+type Vote = 
+ record {
+   choice: opt bool;
+   votingPower: nat;
+ };
+type Time = int;
+type Result_1 = 
+ variant {
+   err: text;
+   ok: nat;
+ };
+type Result = 
+ variant {
+   err: text;
+   ok;
+ };
+type ProposalStatus = 
+ variant {
+   executed:
+    record {
+      choice: opt bool;
+      executedTime: Time;
+      executingTime: Time;
+    };
+   executing: record {
+                choice: opt bool;
+                executingTime: Time;
+              };
+   failedToExecute:
+    record {
+      choice: opt bool;
+      error: text;
+      executingTime: Time;
+      failedTime: Time;
+    };
+   open;
+ };
+type ProposalKind = 
+ variant {
+   customCall: ProposalData;
+   installPds: ProposalData__1;
+   postToBluesky: ProposalData__2;
+   setDelegatePermissions: ProposalData__3;
+   setPdsCanister: ProposalData__4;
+ };
+type ProposalDetail = 
+ record {
+   description: text;
+   id: nat;
+   status: ProposalStatus;
+   timeEnd: opt int;
+   timeStart: int;
+   title: text;
+   totalVotingPower: nat;
+   votesAgainst: nat;
+   votesFor: nat;
+ };
+type ProposalData__4 = record {canisterId: principal;};
+type ProposalData__3 = 
+ record {
+   delegateId: principal;
+   permissions: Permissions;
+ };
+type ProposalData__2 = record {message: text;};
+type ProposalData__1 = 
+ record {
+   initArgs: variant {
+               candidText: text;
+               raw: blob;
+             };
+   kind:
+    variant {
+      install:
+       record {
+         kind:
+          variant {
+            existingCanister: principal;
+            newCanister:
+             record {
+               initialCycleBalance: nat;
+               settings: NewCanisterSettings;
+             };
+          };};
+      reinstall: record {canisterId: principal;};
+      upgrade:
+       record {
+         canisterId: principal;
+         skipPreUpgrade: bool;
+         wasmMemoryPersistence: variant {
+                                  keep;
+                                  replace;
+                                };
+       };
+    };
+   wasmHash: blob;
+ };
+type ProposalData = 
+ record {
+   args: variant {
+           candidText: text;
+           raw: vec nat8;
+         };
+   canisterId: principal;
+   method: text;
+ };
+type Permissions = 
+ record {
+   createRecord: bool;
+   deleteLogs: bool;
+   deleteRecord: bool;
+   modifyOwner: bool;
+   putRecord: bool;
+   readLogs: bool;
+ };
+type OrchestrationEventType = 
+ variant {
+   canister_started;
+   canister_stopped;
+   configuration_changed;
+   snapshot_cleaned;
+   snapshot_created;
+   snapshot_requested;
+   snapshot_revert_requested;
+   snapshot_reverted;
+   upgrade_finished;
+   upgrade_initiated;
+ };
+type NewCanisterSettings = 
+ record {
+   computeAllocation: opt nat;
+   controllers: opt vec principal;
+   freezingThreshold: opt nat;
+   logVisibility: opt LogVisibility;
+   memoryAllocation: opt nat;
+   reservedCyclesLimit: opt nat;
+   wasmMemoryLimit: opt nat;
+   wasmMemoryThreshold: opt nat;
+ };
+type Member = 
+ record {
+   id: principal;
+   votingPower: nat;
+ };
+type LogVisibility = 
+ variant {
+   allowedViewers: vec principal;
+   controllers;
+   public;
+ };
+type ICRC16Property = 
+ record {
+   immutable: bool;
+   name: text;
+   value: ICRC16;
+ };
+type ICRC16 = 
+ variant {
+   Array: vec ICRC16;
+   Blob: blob;
+   Bool: bool;
+   Bytes: vec nat8;
+   Class: vec ICRC16Property;
+   Float: float64;
+   Floats: vec float64;
+   Int: int;
+   Int16: int16;
+   Int32: int32;
+   Int64: int64;
+   Int8: int8;
+   Map: vec record {
+              text;
+              ICRC16;
+            };
+   Nat: nat;
+   Nat16: nat16;
+   Nat32: nat32;
+   Nat64: nat64;
+   Nat8: nat8;
+   Nats: vec nat;
+   Option: opt ICRC16;
+   Principal: principal;
+   Set: vec ICRC16;
+   Text: text;
+   ValueMap: vec record {
+                   ICRC16;
+                   ICRC16;
+                 };
+ };
+type ICRC120OrchestrationEvent = 
+ record {
+   canister_id: principal;
+   details: ICRC16;
+   event_type: OrchestrationEventType;
+   id: nat;
+   timestamp: nat;
+ };
+type ICRC120GetEventsFilter = 
+ record {
+   filter: opt GetEventsFilter;
+   prev: opt blob;
+   take: opt nat;
+ };
+type GetProposalsResponse = 
+ record {
+   count: nat;
+   data: vec ProposalDetail;
+   offset: nat;
+   totalCount: nat;
+ };
+type GetEventsFilter = 
+ record {
+   canister: opt principal;
+   end_time: opt nat;
+   event_types: opt vec OrchestrationEventType;
+   start_time: opt nat;
+ };
+type Delegate = 
+ record {
+   id: principal;
+   permissions: Permissions;
+ };
+type Dao = 
+ service {
+   addMember: (id: principal) -> (Result);
+   addWasmChunk: (request: AddWasmChunkRequest) -> (Result);
+   createProposal: (proposal: ProposalKind) -> (Result_1);
+   finalizeWasmChunks: (wasmHash: blob) -> (Result);
+   getDelegates: () -> (vec Delegate) composite_query;
+   getMember: (id: principal) -> (opt Member) query;
+   getMembers: () -> (vec Member) query;
+   getPdsCanisterId: () -> (opt principal) query;
+   getProposal: (proposalId: nat) -> (opt ProposalDetail) query;
+   getProposals: (count: nat, offset: nat) -> (GetProposalsResponse) query;
+   getVote: (proposalId: nat, voterId: principal) -> (opt Vote) query;
+   getWasmHashes: () -> (vec text);
+   icrc120_get_events: (input: ICRC120GetEventsFilter) ->
+    (vec ICRC120OrchestrationEvent) query;
+   removeMember: (id: principal) -> (Result);
+   vote: (proposalId: nat, vote: bool) -> (Result);
+ };
+type AddWasmChunkRequest = 
+ record {
+   chunk: blob;
+   index: nat;
+   wasmHash: blob;
+ };
+service : () -> Dao

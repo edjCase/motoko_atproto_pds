@@ -21,7 +21,6 @@ export const idlFactory = ({ IDL }) => {
     'plcKind' : PlcKind,
   });
   const Result = IDL.Variant({ 'ok' : IDL.Null, 'err' : IDL.Text });
-  const Result_2 = IDL.Variant({ 'ok' : IDL.Text, 'err' : IDL.Text });
   const CIDText = IDL.Text;
   const CID__1 = IDL.Record({ 'hash' : IDL.Vec(IDL.Nat8) });
   const Codec = IDL.Variant({
@@ -94,7 +93,7 @@ export const idlFactory = ({ IDL }) => {
     'rkey' : IDL.Text,
     'commit' : IDL.Opt(CommitMeta),
   });
-  const Result_7 = IDL.Variant({
+  const Result_6 = IDL.Variant({
     'ok' : CreateRecordResponse,
     'err' : IDL.Text,
   });
@@ -105,7 +104,7 @@ export const idlFactory = ({ IDL }) => {
     'swapRecord' : IDL.Opt(CIDText),
   });
   const DeleteRecordResponse = IDL.Record({ 'commit' : IDL.Opt(CommitMeta) });
-  const Result_6 = IDL.Variant({
+  const Result_5 = IDL.Variant({
     'ok' : DeleteRecordResponse,
     'err' : IDL.Text,
   });
@@ -132,7 +131,19 @@ export const idlFactory = ({ IDL }) => {
     'commits' : IDL.Vec(IDL.Tuple(CIDText, Commit)),
     'nodes' : IDL.Vec(IDL.Tuple(CIDText, Node)),
   });
-  const Result_5 = IDL.Variant({ 'ok' : ExportData, 'err' : IDL.Text });
+  const Result_4 = IDL.Variant({ 'ok' : ExportData, 'err' : IDL.Text });
+  const Permissions = IDL.Record({
+    'createRecord' : IDL.Bool,
+    'deleteRecord' : IDL.Bool,
+    'readLogs' : IDL.Bool,
+    'putRecord' : IDL.Bool,
+    'deleteLogs' : IDL.Bool,
+    'modifyOwner' : IDL.Bool,
+  });
+  const Delegate = IDL.Record({
+    'id' : IDL.Principal,
+    'permissions' : Permissions,
+  });
   const Time = IDL.Int;
   const InitializeRequest = IDL.Record({
     'hostname' : IDL.Text,
@@ -184,7 +195,7 @@ export const idlFactory = ({ IDL }) => {
     'rkey' : IDL.Text,
   });
   const GetRecordResponse = IDL.Record({ 'cid' : CIDText, 'value' : Value__1 });
-  const Result_4 = IDL.Variant({ 'ok' : GetRecordResponse, 'err' : IDL.Text });
+  const Result_3 = IDL.Variant({ 'ok' : GetRecordResponse, 'err' : IDL.Text });
   const Header = IDL.Tuple(IDL.Text, IDL.Text);
   const RawQueryHttpRequest = IDL.Record({
     'url' : IDL.Text,
@@ -252,7 +263,7 @@ export const idlFactory = ({ IDL }) => {
     'records' : IDL.Vec(ListRecord),
     'cursor' : IDL.Opt(IDL.Text),
   });
-  const Result_3 = IDL.Variant({
+  const Result_2 = IDL.Variant({
     'ok' : ListRecordsResponse,
     'err' : IDL.Text,
   });
@@ -270,22 +281,17 @@ export const idlFactory = ({ IDL }) => {
     'commit' : IDL.Opt(CommitMeta),
   });
   const Result_1 = IDL.Variant({ 'ok' : PutRecordResponse, 'err' : IDL.Text });
-  const UpdatePlcRequest = IDL.Record({
-    'did' : IDL.Text,
-    'services' : IDL.Vec(PlcService),
-    'alsoKnownAs' : IDL.Vec(IDL.Text),
-  });
   const Pds = IDL.Service({
     'clearLogs' : IDL.Func([], [Result], []),
-    'createPlcDid' : IDL.Func([CreatePlcRequest], [Result_2], []),
-    'createRecord' : IDL.Func([CreateRecordRequest], [Result_7], []),
-    'deleteRecord' : IDL.Func([DeleteRecordRequest], [Result_6], []),
-    'exportRepoData' : IDL.Func([], [Result_5], ['query']),
+    'createRecord' : IDL.Func([CreateRecordRequest], [Result_6], []),
+    'deleteRecord' : IDL.Func([DeleteRecordRequest], [Result_5], []),
+    'exportRepository' : IDL.Func([], [Result_4], ['query']),
+    'getDelegates' : IDL.Func([], [IDL.Vec(Delegate)], ['query']),
     'getDeployer' : IDL.Func([], [IDL.Principal], ['query']),
     'getInitializationStatus' : IDL.Func([], [InitializationStatus], ['query']),
     'getLogs' : IDL.Func([IDL.Nat, IDL.Nat], [IDL.Vec(LogEntry)], ['query']),
     'getOwner' : IDL.Func([], [IDL.Principal], ['query']),
-    'getRecord' : IDL.Func([GetRecordRequest], [Result_4], ['query']),
+    'getRecord' : IDL.Func([GetRecordRequest], [Result_3], ['query']),
     'http_request' : IDL.Func(
         [RawQueryHttpRequest],
         [RawQueryHttpResponse],
@@ -299,14 +305,16 @@ export const idlFactory = ({ IDL }) => {
     'icrc120_upgrade_finished' : IDL.Func(
         [],
         [ICRC120UpgradeFinishedResult],
+        ['query'],
+      ),
+    'listRecords' : IDL.Func([ListRecordsRequest], [Result_2], ['query']),
+    'putRecord' : IDL.Func([PutRecordRequest], [Result_1], []),
+    'setDelegatePermissions' : IDL.Func(
+        [IDL.Principal, Permissions],
+        [Result],
         [],
       ),
-    'listRecords' : IDL.Func([ListRecordsRequest], [Result_3], ['query']),
-    'postToBluesky' : IDL.Func([IDL.Text], [Result_2], []),
-    'putRecord' : IDL.Func([PutRecordRequest], [Result_1], []),
-    'reinitialize' : IDL.Func([IDL.Opt(InitializeRequest)], [Result], []),
     'setOwner' : IDL.Func([IDL.Principal], [Result], []),
-    'updatePlcDid' : IDL.Func([UpdatePlcRequest], [Result], []),
   });
   return Pds;
 };

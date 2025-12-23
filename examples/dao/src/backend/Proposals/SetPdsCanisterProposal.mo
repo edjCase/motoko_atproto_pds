@@ -19,9 +19,7 @@ module {
   };
 
   public func onAdopt(
-    daoPrincipal : Principal,
     proposalData : ProposalData,
-    orchestratorFactory : () -> ICRC120.ICRC120,
     updatePdsCanisterId : (Principal) -> (),
   ) : async* Result.Result<(), Text> {
     // Simply set the PDS canister ID

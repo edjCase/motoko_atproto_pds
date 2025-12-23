@@ -51,34 +51,34 @@ module {
     getHashes : () -> async* [WasmHash];
   };
 
-  public class RemoteWasmStore<system>(canisterId : Principal) : WasmStore {
-    let icrc118Canister = actor (Principal.toText(canisterId)) : ICRC118Service.Service;
-    public func getChunk(wasmHash : WasmHash, index : Nat, expectedHashOrNull : ?Blob) : async* Result.Result<Blob, GetChunkError> {
+  // public class RemoteWasmStore<system>(canisterId : Principal) : WasmStore {
+  //   let _icrc118Canister = actor (Principal.toText(canisterId)) : ICRC118Service.Service;
+  //   public func getChunk(_wasmHash : WasmHash, index : Nat, expectedHashOrNull : ?Blob) : async* Result.Result<Blob, GetChunkError> {
 
-      // let response = try {
-      //   await* icrc118Canister.icrc118_get_wasm_chunk(
-      //     {
-      //       canister_type_namespace = "";
-      //       version_number = version;
-      //       hash = wasmHash;
-      //       chunk_id = index;
-      //     } : GetWasmChunkRequest
-      //   );
-      // } catch e {
-      //   return #err(#issue);
-      // };
-      #err(#wasmNotFound);
-    };
+  //     // let response = try {
+  //     //   await* icrc118Canister.icrc118_get_wasm_chunk(
+  //     //     {
+  //     //       canister_type_namespace = "";
+  //     //       version_number = version;
+  //     //       hash = wasmHash;
+  //     //       chunk_id = index;
+  //     //     } : GetWasmChunkRequest
+  //     //   );
+  //     // } catch e {
+  //     //   return #err(#issue);
+  //     // };
+  //     #err(#wasmNotFound);
+  //   };
 
-    public func getWasm(wasmHash : WasmHash) : async* ?WasmData {
-      null;
-    };
+  //   public func getWasm(wasmHash : WasmHash) : async* ?WasmData {
+  //     null;
+  //   };
 
-    public func getHashes() : async* [WasmHash] {
-      // TODO implement
-      [];
-    };
-  };
+  //   public func getHashes() : async* [WasmHash] {
+  //     // TODO implement
+  //     [];
+  //   };
+  // };
 
   public type LocalStableData = {
     wasmMap : PureMap.Map<WasmHash, WasmData>;

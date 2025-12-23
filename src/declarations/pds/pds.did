@@ -18,12 +18,6 @@ type ValidationStatus =
    unknown;
    valid;
  };
-type UpdatePlcRequest = 
- record {
-   alsoKnownAs: vec text;
-   did: text;
-   services: vec PlcService;
- };
 type TreeEntry = 
  record {
    keySuffix: vec nat8;
@@ -48,35 +42,30 @@ type ServerInfo =
    plcIdentifier: text;
    serviceSubdomain: opt text;
  };
-type Result_7 = 
+type Result_6 = 
  variant {
    err: text;
    ok: CreateRecordResponse;
  };
-type Result_6 = 
+type Result_5 = 
  variant {
    err: text;
    ok: DeleteRecordResponse;
  };
-type Result_5 = 
+type Result_4 = 
  variant {
    err: text;
    ok: ExportData;
  };
-type Result_4 = 
+type Result_3 = 
  variant {
    err: text;
    ok: GetRecordResponse;
  };
-type Result_3 = 
- variant {
-   err: text;
-   ok: ListRecordsResponse;
- };
 type Result_2 = 
  variant {
    err: text;
-   ok: text;
+   ok: ListRecordsResponse;
  };
 type Result_1 = 
  variant {
@@ -145,29 +134,37 @@ type PlcKind =
    id: text;
    new: CreatePlcRequest;
  };
+type Permissions = 
+ record {
+   createRecord: bool;
+   deleteLogs: bool;
+   deleteRecord: bool;
+   modifyOwner: bool;
+   putRecord: bool;
+   readLogs: bool;
+ };
 type Pds = 
  service {
    clearLogs: () -> (Result);
-   createPlcDid: (request: CreatePlcRequest) -> (Result_2);
-   createRecord: (request: CreateRecordRequest) -> (Result_7);
-   deleteRecord: (request: DeleteRecordRequest) -> (Result_6);
-   exportRepoData: () -> (Result_5) query;
+   createRecord: (request: CreateRecordRequest) -> (Result_6);
+   deleteRecord: (request: DeleteRecordRequest) -> (Result_5);
+   exportRepository: () -> (Result_4) query;
+   getDelegates: () -> (vec Delegate) query;
    getDeployer: () -> (principal) query;
    getInitializationStatus: () -> (InitializationStatus) query;
    getLogs: (limit: nat, offset: nat) -> (vec LogEntry) query;
    getOwner: () -> (principal) query;
-   getRecord: (request: GetRecordRequest) -> (Result_4) query;
+   getRecord: (request: GetRecordRequest) -> (Result_3) query;
    http_request: (request: RawQueryHttpRequest) ->
     (RawQueryHttpResponse) query;
    http_request_update: (request: RawUpdateHttpRequest) ->
     (RawUpdateHttpResponse);
-   icrc120_upgrade_finished: () -> (ICRC120UpgradeFinishedResult);
-   listRecords: (request: ListRecordsRequest) -> (Result_3) query;
-   postToBluesky: (message: text) -> (Result_2);
+   icrc120_upgrade_finished: () -> (ICRC120UpgradeFinishedResult) query;
+   listRecords: (request: ListRecordsRequest) -> (Result_2) query;
    putRecord: (request: PutRecordRequest) -> (Result_1);
-   reinitialize: (requestOrNull: opt InitializeRequest) -> (Result);
+   setDelegatePermissions: (entity: principal, permissions: Permissions) ->
+    (Result);
    setOwner: (newOwner: principal) -> (Result);
-   updatePlcDid: (request: UpdatePlcRequest) -> (Result);
  };
 type Node = 
  record {
@@ -302,6 +299,11 @@ type DeleteRecordRequest =
    rkey: text;
    swapCommit: opt CIDText;
    swapRecord: opt CIDText;
+ };
+type Delegate = 
+ record {
+   id: principal;
+   permissions: Permissions;
  };
 type CreateRecordResponse = 
  record {

@@ -233,7 +233,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   };
 
   public shared query ({ caller }) func getLogs(limit : Nat, offset : Nat) : async [PdsInterface.LogEntry] {
-    permissionHandler.validateOrTrap(#readLogs, caller);
+    permissionHandler.authorizeActionOrTrap(caller, #readLogs);
     PureQueue.values(stableLogData)
     |> Iter.drop(_, offset)
     |> Iter.take(_, limit)
@@ -241,7 +241,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   };
 
   public shared ({ caller }) func clearLogs() : async Result.Result<(), Text> {
-    permissionHandler.validateOrTrap(#deleteLogs, caller);
+    permissionHandler.authorizeActionOrTrap(caller, #deleteLogs);
     stableLogData := PureQueue.empty<LogEntry>();
     #ok;
   };
@@ -251,15 +251,19 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   };
 
   public shared ({ caller }) func setOwner(newOwner : Principal) : async Result.Result<(), Text> {
-    permissionHandler.validateOrTrap(#modifyOwner, caller);
+    permissionHandler.authorizeActionOrTrap(caller, #modifyOwner);
     permissionHandler.setOwner(newOwner);
     #ok;
   };
 
   public shared ({ caller }) func setDelegatePermissions(entity : Principal, permissions : PdsInterface.Permissions) : async Result.Result<(), Text> {
-    permissionHandler.validateIsOwnerOrTrap(caller);
+    permissionHandler.authorizeIsOwnerOrTrap(caller);
     permissionHandler.setPermissions(entity, permissions);
     #ok;
+  };
+
+  public shared query func getDelegates() : async [PdsInterface.Delegate] {
+    permissionHandler.getDelegates();
   };
 
   public shared query func getDeployer() : async Principal {
@@ -267,7 +271,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   };
 
   public shared ({ caller }) func createRecord(request : PdsInterface.CreateRecordRequest) : async Result.Result<PdsInterface.CreateRecordResponse, Text> {
-    permissionHandler.validateOrTrap(#createRecord, caller);
+    permissionHandler.authorizeActionOrTrap(caller, #createRecord);
     let swapCommitCid = switch (request.swapCommit) {
       case (null) null;
       case (?cidText) {
@@ -304,7 +308,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   };
 
   public shared ({ caller }) func deleteRecord(request : PdsInterface.DeleteRecordRequest) : async Result.Result<PdsInterface.DeleteRecordResponse, Text> {
-    permissionHandler.validateOrTrap(#deleteRecord, caller);
+    permissionHandler.authorizeActionOrTrap(caller, #deleteRecord);
     let swapCommitCid = switch (request.swapCommit) {
       case (null) null;
       case (?cidText) {
@@ -346,7 +350,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   };
 
   public shared ({ caller }) func putRecord(request : PdsInterface.PutRecordRequest) : async Result.Result<PdsInterface.PutRecordResponse, Text> {
-    permissionHandler.validateOrTrap(#putRecord, caller);
+    permissionHandler.authorizeActionOrTrap(caller, #putRecord);
     let swapCommitCid = switch (request.swapCommit) {
       case (null) null;
       case (?cidText) {
@@ -512,11 +516,15 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
   // Assumes that if in any state other than #initialized, initialization has failed or not yet run
   // TODO improve this logic to handle failed initialization attempts better
   switch (serverInfoHandler.getState()) {
-    case (#initialized(_)) ();
+    case (#initialized(_)) {
+      logger.log(#info, "PDS already initialized; skipping installation initialization");
+    };
     case (_) {
+      logger.log(#info, "Scheduling PDS initialization on install...");
       ignore Timer.setTimer<system>(
         #seconds(0),
         func() : async () {
+          logger.log(#info, "Running PDS initialization on install...");
           // This function assumes that it only run
           func initialize() : async* Result.Result<(), Text> {
             let request : PdsInterface.InitializeRequest = installArgs;
@@ -528,6 +536,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
                 plc = null;
               })
             );
+            logger.log(#info, "PDS initialization started at " # debug_show (startTime));
             let (plcIndentifier, repository) : (DID.Plc.DID, ?Repository.Repository) = switch (request.plcKind) {
               case (#new(createRequest)) {
                 switch (await* didDirectoryHandler.create(createRequest)) {
@@ -558,10 +567,12 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
                 plc = ?(plcIndentifier, repository);
               })
             );
+            logger.log(#info, "PLC Identifier set to " # DID.Plc.toText(plcIndentifier));
             switch (await* repositoryHandler.initialize(repository)) {
               case (#ok(_)) ();
               case (#err(e)) return #err("Failed to create repository: " # e);
             };
+            logger.log(#info, "Repository initialized successfully");
 
             onIdentityChange({
               did = #plc(plcIndentifier);
@@ -573,6 +584,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
               status = null;
             });
 
+            logger.log(#info, "Certifying well-known assets...");
             // TODO can this be built into the WellKnownRouter instead?
             let serverInfo = serverInfoHandler.get();
             let icDomains = WellKnownRouter.getIcDomainsText(serverInfo);
@@ -592,6 +604,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
                 };
               })
             );
+            logger.log(#info, "PDS initialization completed at " # debug_show (Time.now()));
 
             #ok;
           };

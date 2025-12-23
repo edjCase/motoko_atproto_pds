@@ -62,6 +62,7 @@ export interface CreateRecordResponse {
   'rkey' : string,
   'commit' : [] | [CommitMeta],
 }
+export interface Delegate { 'id' : Principal, 'permissions' : Permissions }
 export interface DeleteRecordRequest {
   'collection' : string,
   'swapCommit' : [] | [CIDText],
@@ -153,27 +154,33 @@ export interface Node {
 }
 export interface Pds {
   'clearLogs' : ActorMethod<[], Result>,
-  'createPlcDid' : ActorMethod<[CreatePlcRequest], Result_2>,
-  'createRecord' : ActorMethod<[CreateRecordRequest], Result_7>,
-  'deleteRecord' : ActorMethod<[DeleteRecordRequest], Result_6>,
-  'exportRepoData' : ActorMethod<[], Result_5>,
+  'createRecord' : ActorMethod<[CreateRecordRequest], Result_6>,
+  'deleteRecord' : ActorMethod<[DeleteRecordRequest], Result_5>,
+  'exportRepository' : ActorMethod<[], Result_4>,
+  'getDelegates' : ActorMethod<[], Array<Delegate>>,
   'getDeployer' : ActorMethod<[], Principal>,
   'getInitializationStatus' : ActorMethod<[], InitializationStatus>,
   'getLogs' : ActorMethod<[bigint, bigint], Array<LogEntry>>,
   'getOwner' : ActorMethod<[], Principal>,
-  'getRecord' : ActorMethod<[GetRecordRequest], Result_4>,
+  'getRecord' : ActorMethod<[GetRecordRequest], Result_3>,
   'http_request' : ActorMethod<[RawQueryHttpRequest], RawQueryHttpResponse>,
   'http_request_update' : ActorMethod<
     [RawUpdateHttpRequest],
     RawUpdateHttpResponse
   >,
   'icrc120_upgrade_finished' : ActorMethod<[], ICRC120UpgradeFinishedResult>,
-  'listRecords' : ActorMethod<[ListRecordsRequest], Result_3>,
-  'postToBluesky' : ActorMethod<[string], Result_2>,
+  'listRecords' : ActorMethod<[ListRecordsRequest], Result_2>,
   'putRecord' : ActorMethod<[PutRecordRequest], Result_1>,
-  'reinitialize' : ActorMethod<[[] | [InitializeRequest]], Result>,
+  'setDelegatePermissions' : ActorMethod<[Principal, Permissions], Result>,
   'setOwner' : ActorMethod<[Principal], Result>,
-  'updatePlcDid' : ActorMethod<[UpdatePlcRequest], Result>,
+}
+export interface Permissions {
+  'createRecord' : boolean,
+  'deleteRecord' : boolean,
+  'readLogs' : boolean,
+  'putRecord' : boolean,
+  'deleteLogs' : boolean,
+  'modifyOwner' : boolean,
 }
 export type PlcKind = { 'id' : string } |
   { 'car' : Uint8Array | number[] } |
@@ -226,17 +233,15 @@ export type Result = { 'ok' : null } |
   { 'err' : string };
 export type Result_1 = { 'ok' : PutRecordResponse } |
   { 'err' : string };
-export type Result_2 = { 'ok' : string } |
+export type Result_2 = { 'ok' : ListRecordsResponse } |
   { 'err' : string };
-export type Result_3 = { 'ok' : ListRecordsResponse } |
+export type Result_3 = { 'ok' : GetRecordResponse } |
   { 'err' : string };
-export type Result_4 = { 'ok' : GetRecordResponse } |
+export type Result_4 = { 'ok' : ExportData } |
   { 'err' : string };
-export type Result_5 = { 'ok' : ExportData } |
+export type Result_5 = { 'ok' : DeleteRecordResponse } |
   { 'err' : string };
-export type Result_6 = { 'ok' : DeleteRecordResponse } |
-  { 'err' : string };
-export type Result_7 = { 'ok' : CreateRecordResponse } |
+export type Result_6 = { 'ok' : CreateRecordResponse } |
   { 'err' : string };
 export interface ServerInfo {
   'hostname' : string,
@@ -260,11 +265,6 @@ export interface TreeEntry {
   'subtreeCID' : [] | [CID],
   'prefixLength' : bigint,
   'valueCID' : CID,
-}
-export interface UpdatePlcRequest {
-  'did' : string,
-  'services' : Array<PlcService>,
-  'alsoKnownAs' : Array<string>,
 }
 export type ValidationStatus = { 'valid' : null } |
   { 'unknown' : null };

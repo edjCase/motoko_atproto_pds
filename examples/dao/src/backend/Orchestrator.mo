@@ -47,11 +47,11 @@ module {
       {
         add_record = null;
         advanced = null;
-        can_admin_canister = func(context : { caller : Principal; canisterId : Principal }) : async* Bool {
+        can_admin_canister = func(_ : { caller : Principal; canisterId : Principal }) : async* Bool {
           true; // TODO
         };
         can_install_canister = ?(
-          func(context : { caller : Principal; canisterId : Principal }) : async* Bool {
+          func(_ : { caller : Principal; canisterId : Principal }) : async* Bool {
             true; // TODO
           }
         );

@@ -13,6 +13,8 @@ module {
     getOwner : query () -> async Principal;
     setOwner : (newOwner : Principal) -> async Result.Result<(), Text>;
     getDeployer : query () -> async Principal;
+    setDelegatePermissions : (entity : Principal, permissions : Permissions) -> async Result.Result<(), Text>;
+    getDelegates : query () -> async [Delegate];
 
     createRecord : (request : CreateRecordRequest) -> async Result.Result<CreateRecordResponse, Text>;
     deleteRecord : (request : DeleteRecordRequest) -> async Result.Result<DeleteRecordResponse, Text>;
@@ -22,6 +24,20 @@ module {
     exportRepository : query () -> async Result.Result<ExportData, Text>;
 
     icrc120_upgrade_finished : query () -> async ICRC120UpgradeFinishedResult;
+  };
+
+  public type Delegate = {
+    id : Principal;
+    permissions : Permissions;
+  };
+
+  public type Permissions = {
+    readLogs : Bool;
+    deleteLogs : Bool;
+    createRecord : Bool;
+    putRecord : Bool;
+    deleteRecord : Bool;
+    modifyOwner : Bool;
   };
 
   public type InitializeRequest = {

@@ -151,7 +151,7 @@ module {
       };
       case (#install({ kind })) {
         switch (kind) {
-          case (#newCanister({ initialCycleBalance; settings })) {}; // New canister, no validation needed
+          case (#newCanister(_)) {};
           case (#existingCanister(canisterId)) if (canisterId == Principal.anonymous()) {
             List.add(errors, "Invalid canister ID for install - cannot be anonymous principal");
           };

@@ -1,5 +1,4 @@
 import ProposalEngine "mo:dao-proposal-engine@2/ProposalEngine";
-import ExtendedProposalEngine "mo:dao-proposal-engine@2/ExtendedProposalEngine";
 import Principal "mo:core@1/Principal";
 import Result "mo:core@1/Result";
 import Text "mo:core@1/Text";
@@ -8,6 +7,8 @@ import DaoInterface "./DaoInterface";
 import PostToBlueskyProposal "./Proposals/PostToBlueskyProposal";
 import SetPdsCanisterProposal "./Proposals/SetPdsCanisterProposal";
 import InstallPdsProposal "./Proposals/InstallPdsProposal";
+import SetDelegatePermissionsProposal "./Proposals/SetDelegatePermissionsProposal";
+import CustomCallProposal "./Proposals/CustomCallProposal";
 import BTree "mo:stableheapbtreemap@1/BTree";
 import PureMap "mo:core@1/pure/Map";
 import Iter "mo:core@1/Iter";
@@ -17,6 +18,8 @@ import Logger "Logger";
 import WasmStore "WasmStore";
 import Nat "mo:core@1/Nat";
 import Debug "mo:core@1/Debug";
+import PdsInterface "../../../../src/PdsInterface";
+import Runtime "mo:core@1/Runtime";
 
 shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface.Actor = this {
 
@@ -40,7 +43,7 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
     deployer,
     { votingPower = 1 },
   );
-  var pdsCanisterId : ?Principal = null; // Will be set by DAO
+  var pdsCanisterIdOrNull : ?Principal = null; // Will be set by DAO
 
   transient let timerTool = TimerTool.TimerTool(
     null,
@@ -90,7 +93,7 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
 
   // Helper function to update PDS canister ID
   func updatePdsCanisterId(newCanisterId : Principal) : () {
-    pdsCanisterId := ?newCanisterId;
+    pdsCanisterIdOrNull := ?newCanisterId;
   };
 
   // Proposal execution handlers
@@ -99,13 +102,13 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
   ) : async* Result.Result<(), Text> {
     switch (proposal.content) {
       case (#postToBluesky(postProposal)) {
-        switch (pdsCanisterId) {
+        switch (pdsCanisterIdOrNull) {
           case (null) return #err("PDS canister ID is not set. Cannot post to AT Protocol.");
           case (?canisterId) await* PostToBlueskyProposal.onAdopt(canisterId, postProposal.message);
         };
       };
       case (#setPdsCanister(setPdsProposal)) {
-        await* SetPdsCanisterProposal.onAdopt(daoPrincipal, setPdsProposal, orchestrator.factory, updatePdsCanisterId);
+        await* SetPdsCanisterProposal.onAdopt(setPdsProposal, updatePdsCanisterId);
       };
       case (#installPds(installPdsProposal)) {
         await* InstallPdsProposal.onAdopt(
@@ -114,6 +117,25 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
           orchestrator.factory,
           updatePdsCanisterId,
         );
+      };
+      case (#setDelegatePermissions(setDelegateProposal)) { 
+        switch (pdsCanisterIdOrNull) {
+          case (null) return #err("PDS canister ID is not set. Cannot post to AT Protocol.");
+          case (?canisterId) await* SetDelegatePermissionsProposal.onAdopt(
+          canisterId,
+          setDelegateProposal,
+          );
+        };
+      };
+      case (#customCall(customCallProposal)) {
+        switch(await* CustomCallProposal.onAdopt(customCallProposal)){
+          case (#ok(reply)) {
+            // TODO how to handle reply?
+            Debug.print("Custom call proposal executed successfully. Reply: " # debug_show (reply));
+            #ok;
+          };
+          case (#err(errorMsg)) return #err(errorMsg);
+        }
       };
     };
   };
@@ -133,6 +155,12 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
       case (#installPds(installPdsProposal)) {
         InstallPdsProposal.validate(installPdsProposal);
       };
+      case (#setDelegatePermissions(setDelegateProposal)) {
+        SetDelegatePermissionsProposal.validate(setDelegateProposal);
+      };
+      case (#customCall(customCallProposal)) {
+        CustomCallProposal.validate(customCallProposal);
+      };
     };
   };
 
@@ -147,7 +175,7 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
   // Public methods
 
   public query func getPdsCanisterId() : async ?Principal {
-    pdsCanisterId;
+    pdsCanisterIdOrNull;
   };
 
   public func addWasmChunk(request : DaoInterface.AddWasmChunkRequest) : async Result.Result<(), Text> {
@@ -178,12 +206,8 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
   };
 
   public query (_msg) func icrc120_get_events(
-    input : {
-      filter : ?Orchestrator.GetEventsFilter;
-      prev : ?Blob;
-      take : ?Nat;
-    }
-  ) : async [Orchestrator.OrchestrationEvent] {
+    input : DaoInterface.ICRC120GetEventsFilter
+  ) : async [DaoInterface.ICRC120OrchestrationEvent] {
     orchestrator.factory().icrc120_get_events(input);
   };
   // TODO remove and make it a DAO proposal
@@ -273,7 +297,7 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
     ?mapToDetail(proposal);
   };
 
-  public query func getProposals(count : Nat, offset : Nat) : async ExtendedProposalEngine.PagedResult<DaoInterface.ProposalDetail> {
+  public query func getProposals(count : Nat, offset : Nat) : async DaoInterface.GetProposalsResponse {
     let pagedResult = proposalEngine.getProposals(count, offset);
     {
       pagedResult with
@@ -281,8 +305,14 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
     };
   };
 
-  public query func getVote(proposalId : Nat, voterId : Principal) : async ?ExtendedProposalEngine.Vote<Bool> {
+  public query func getVote(proposalId : Nat, voterId : Principal) : async ?DaoInterface.Vote {
     proposalEngine.getVote(proposalId, voterId);
+  };
+
+  public composite query func getDelegates() : async [DaoInterface.Delegate] {
+    let ?canisterId = pdsCanisterIdOrNull else return Runtime.trap("PDS canister ID is not set.");
+    let pdsActor = actor (Principal.toText(canisterId)) : PdsInterface.Actor;
+    await pdsActor.getDelegates();
   };
 
   func mapToDetail(proposal : ProposalEngine.Proposal<DaoInterface.ProposalKind>) : DaoInterface.ProposalDetail {
@@ -330,6 +360,20 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
             ("Upgrade PDS", upgradeDetails # "\n" # details);
           };
         };
+      };
+      case (#setDelegatePermissions(setDelegateProposal)) {
+        let delegateIdText = "Delegate ID: " # Principal.toText(setDelegateProposal.delegateId);
+        let permissionsText = "Permissions:\n" # debug_show (setDelegateProposal.permissions);
+        ("Set Delegate Permissions", delegateIdText # "\n" # permissionsText);
+      };
+      case (#customCall(customCallProposal)) {
+        let canisterIdText = "Canister ID: " # Principal.toText(customCallProposal.canisterId);
+        let methodText = "Method: " # customCallProposal.method;
+        let argsText = switch (customCallProposal.args) {
+          case (#candidText(text)) "Args (Candid Text):\n    " # text;
+          case (#raw(blob)) "Args (Raw - hex): " # debug_show (blob);
+        };
+        ("Custom Call Proposal", canisterIdText # "\n" # methodText # "\n" # argsText);
       };
     };
 
