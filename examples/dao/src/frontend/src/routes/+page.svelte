@@ -305,7 +305,7 @@
                         if (logVisibility.trim() === "controllers") {
                             logVisibilityValue = [{ controllers: null }];
                         } else if (logVisibility.trim() === "public") {
-                            logVisibilityValue = [{ public_: null }];
+                            logVisibilityValue = [{ public: null }];
                         } else if (
                             logVisibility.trim().startsWith("allowedViewers:")
                         ) {
@@ -1417,96 +1417,62 @@
                         <div class="form-group">
                             <label>Delegate Permissions:</label>
                             <div
-                                style="display: flex; flex-direction: column; gap: 8px; padding: 10px; background: rgba(0, 255, 0, 0.05); border: 1px solid #00aa00; border-radius: 3px;"
+                                style="display: grid; grid-template-columns: auto auto; gap: 8px; padding: 10px; background: rgba(0, 255, 0, 0.05); border: 1px solid #00aa00; border-radius: 3px; width: fit-content;"
                             >
-                                <label
-                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        bind:checked={
-                                            delegatePermissions.readLogs
-                                        }
-                                        disabled={!isAuthenticated || !isMember}
-                                        style="cursor: pointer;"
-                                    />
-                                    <span>Read Logs - View PDS logs</span>
-                                </label>
-                                <label
-                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        bind:checked={
-                                            delegatePermissions.deleteLogs
-                                        }
-                                        disabled={!isAuthenticated || !isMember}
-                                        style="cursor: pointer;"
-                                    />
-                                    <span>Delete Logs - Clear PDS logs</span>
-                                </label>
-                                <label
-                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        bind:checked={
-                                            delegatePermissions.createRecord
-                                        }
-                                        disabled={!isAuthenticated || !isMember}
-                                        style="cursor: pointer;"
-                                    />
-                                    <span
-                                        >Create Record - Create new records in
-                                        the repository</span
-                                    >
-                                </label>
-                                <label
-                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        bind:checked={
-                                            delegatePermissions.putRecord
-                                        }
-                                        disabled={!isAuthenticated || !isMember}
-                                        style="cursor: pointer;"
-                                    />
-                                    <span
-                                        >Put Record - Update existing records</span
-                                    >
-                                </label>
-                                <label
-                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        bind:checked={
-                                            delegatePermissions.deleteRecord
-                                        }
-                                        disabled={!isAuthenticated || !isMember}
-                                        style="cursor: pointer;"
-                                    />
-                                    <span
-                                        >Delete Record - Remove records from the
-                                        repository</span
-                                    >
-                                </label>
-                                <label
-                                    style="display: flex; align-items: center; gap: 8px; cursor: pointer;"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        bind:checked={
-                                            delegatePermissions.modifyOwner
-                                        }
-                                        disabled={!isAuthenticated || !isMember}
-                                        style="cursor: pointer;"
-                                    />
-                                    <span
-                                        >Modify Owner - Change the PDS owner</span
-                                    >
-                                </label>
+                                <span>Read Logs</span>
+                                <input
+                                    type="checkbox"
+                                    bind:checked={
+                                        delegatePermissions.readLogs
+                                    }
+                                    disabled={!isAuthenticated || !isMember}
+                                    style="cursor: pointer;"
+                                />
+                                <span>Delete Logs</span>
+                                <input
+                                    type="checkbox"
+                                    bind:checked={
+                                        delegatePermissions.deleteLogs
+                                    }
+                                    disabled={!isAuthenticated || !isMember}
+                                    style="cursor: pointer;"
+                                />
+                                <span>Create Record</span>
+                                <input
+                                    type="checkbox"
+                                    bind:checked={
+                                        delegatePermissions.createRecord
+                                    }
+                                    disabled={!isAuthenticated || !isMember}
+                                    style="cursor: pointer;"
+                                />
+                                <span>Put Record</span>
+                                <input
+                                    type="checkbox"
+                                    bind:checked={
+                                        delegatePermissions.putRecord
+                                    }
+                                    disabled={!isAuthenticated || !isMember}
+                                    style="cursor: pointer;"
+                                />
+                                <span>Delete Record</span>
+                                <input
+                                    type="checkbox"
+                                    bind:checked={
+                                        delegatePermissions.deleteRecord
+                                    }
+                                    disabled={!isAuthenticated || !isMember}
+                                    style="cursor: pointer;"
+                                />
+                                <span>Modify Owner</span>
+                                <input
+                                    type="checkbox"
+                                    bind:checked={
+                                        delegatePermissions.modifyOwner
+                                    }
+                                    disabled={!isAuthenticated || !isMember}
+                                    style="cursor: pointer;"
+                                />
                             </div>
                         </div>
                     {/if}

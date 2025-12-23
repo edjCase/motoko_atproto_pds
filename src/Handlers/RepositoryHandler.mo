@@ -244,7 +244,11 @@ module {
       let repository : Repository.Repository = switch (existingRepository) {
         case (?repository) repository;
         case (null) {
-          let did = serverInfoHandler.get().plcIdentifier;
+          let did = switch(serverInfoHandler.getState()) {
+            case (#initialized({ info })) info.plcIdentifier;
+            case (#initializing({ plc = ?(plcId, _) })) plcId;
+            case (_) return #err("Server info does not have PLC identifier available");
+          };
           let rev = tidGenerator.next();
           let signFunc = getSignFunc();
           let repository = switch (await* Repository.empty(did, rev, signFunc)) {

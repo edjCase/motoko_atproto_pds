@@ -6,7 +6,7 @@ const isProd = process.env.DFX_NETWORK === 'ic';
 
 const identityProvider = isProd
     ? 'https://identity.ic0.app'
-    : `http://${process.env.CANISTER_ID_INTERNET_IDENTITY}.localhost:4943`;
+    : `http://rdmx6-jaaaa-aaaaa-aaadq-cai.localhost:4943`;
 
 let authClient = null;
 

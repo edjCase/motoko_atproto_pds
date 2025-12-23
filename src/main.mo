@@ -586,7 +586,11 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
 
             logger.log(#info, "Certifying well-known assets...");
             // TODO can this be built into the WellKnownRouter instead?
-            let serverInfo = serverInfoHandler.get();
+            let serverInfo = {
+              serviceSubdomain = request.serviceSubdomain;
+              hostname = request.hostname;
+              plcIdentifier = plcIndentifier;
+            };
             let icDomains = WellKnownRouter.getIcDomainsText(serverInfo);
             let icDomainsBlob = Text.encodeUtf8(icDomains);
             let icDomainsEndpoint = CertifiedAssets.Endpoint("/.well-known/ic-domains", ?icDomainsBlob).no_certification().no_request_certification();
@@ -597,11 +601,7 @@ shared ({ caller = deployer }) persistent actor class Pds(installArgs : PdsInter
                 startTime = startTime;
                 endTime = Time.now();
                 request = request;
-                info = {
-                  serviceSubdomain = request.serviceSubdomain;
-                  hostname = request.hostname;
-                  plcIdentifier = plcIndentifier;
-                };
+                info = serverInfo;
               })
             );
             logger.log(#info, "PDS initialization completed at " # debug_show (Time.now()));
