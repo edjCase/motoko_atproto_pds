@@ -43,11 +43,23 @@ func createMockHandlers() : (KeyHandler.HandlerInterface, ServerInfoHandler.Hand
     };
   };
 
-  let serverInfoStableData : ServerInfoHandler.StableData = {
-    serviceSubdomain = ?"test";
-    hostname = "example.com";
-    plcIdentifier = createTestDID();
-  };
+  let serverInfoStableData : ServerInfoHandler.StableData = #initialized({
+    info = {
+      serviceSubdomain = ?"test";
+      hostname = "example.com";
+      plcIdentifier = createTestDID();
+    };
+    request = {
+      hostname = "example.com";
+      plcKind = #new({
+        alsoKnownAs = [];
+        services = [];
+      });
+      serviceSubdomain = ?"test";
+    };
+    startTime = 0;
+    endTime = 1;
+  });
   let serverInfoHandler = ServerInfoHandler.Handler(?serverInfoStableData);
 
   let tidGenerator = TID.Generator();

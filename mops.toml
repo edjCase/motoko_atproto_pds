@@ -1,7 +1,7 @@
 [package]
-name = "atproto_pds"
+name = "atproto-pds"
 version = "0.0.1"
-description = ""
+description = "A Motoko implementation of an AT Protocol Personal Data Server (PDS) made for DAOs."
 repository = "https://github.com/edjcase/motoko_atproto_pds"
 keywords = ["at", "protocol", "atproto", "ipld"]
 license = "MIT"
@@ -9,7 +9,7 @@ license = "MIT"
 [dependencies]
 "core@1" = "1.0.0"
 "liminal@3" = "3.1.0"
-"atproto@0" = "../motoko_atproto/"
+"atproto@0" = "0.0.1"
 "datetime@1" = "1.1.0"
 "car@1" = "1.1.0"
 
