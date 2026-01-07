@@ -176,20 +176,26 @@ dfx start --background
 4. Deploy the PDS:
 ```bash
 # For local deployment with a new DID
-./scripts/deploy.sh local new
+./scripts/deploy_local.sh new
+
+# For local deployment with an existing PLC DID
+./scripts/deploy_local.sh did:plc:your_existing_did
 
 # For IC deployment with a new DID
-./scripts/deploy.sh ic new
+./scripts/deploy_ic.sh new your-domain.com
 
-# For deployment with an existing PLC DID
-./scripts/deploy.sh ic did:plc:your_existing_did
+# For IC deployment with custom subdomain
+./scripts/deploy_ic.sh new your-domain.com auto pds
+
+# For IC deployment with an existing PLC DID
+./scripts/deploy_ic.sh did:plc:your_existing_did your-domain.com
 ```
 
-The deployment script automatically:
-- Creates or uses existing canister
-- Generates or uses the specified PLC DID
-- Configures the hostname based on the network
-- Initializes the PDS with the correct parameters
+The deployment scripts automatically:
+- Create or use existing canister
+- Generate or use the specified PLC DID
+- Configure the hostname based on the network and parameters
+- Initialize the PDS with the correct parameters
 
 ### Configuration
 
@@ -212,29 +218,59 @@ For your PDS to be crawled by AT Protocol relays, see the [WebSocket Requirement
 
 The `scripts/` directory contains helpful utilities for managing your PDS:
 
-### `deploy.sh`
+### `deploy_local.sh`
 
-Deploys the PDS canister with initialization parameters.
+Deploys the PDS canister to the local network with initialization parameters.
 
 ```bash
-./scripts/deploy.sh <network> <plc_did> [mode]
+./scripts/deploy_local.sh <plc_did> [mode]
 ```
 
 **Arguments:**
-- `<network>`: Target network (`local` or `ic`)
 - `<plc_did>`: Either `new` to create a new DID, or an existing `did:plc:...` identifier
 - `[mode]`: Optional deployment mode (`auto`, `install`, `reinstall`, or `upgrade`)
 
 **Examples:**
 ```bash
 # Deploy locally with a new DID
-./scripts/deploy.sh local new
+./scripts/deploy_local.sh new
 
-# Deploy to IC with an existing DID
-./scripts/deploy.sh ic did:plc:abcd1234
+# Deploy locally with an existing DID
+./scripts/deploy_local.sh did:plc:abcd1234
 
 # Reinstall on local network
-./scripts/deploy.sh local new reinstall
+./scripts/deploy_local.sh new reinstall
+```
+
+### `deploy_ic.sh`
+
+Deploys the PDS canister to the Internet Computer mainnet with initialization parameters.
+
+```bash
+./scripts/deploy_ic.sh <plc_did> <hostname> [mode] [serviceSubdomain]
+```
+
+**Arguments:**
+- `<plc_did>`: Either `new` to create a new DID, or an existing `did:plc:...` identifier
+- `<hostname>`: Required. The base hostname (e.g., `example.com`)
+- `[mode]`: Optional deployment mode (`auto`, `install`, `reinstall`, or `upgrade`)
+- `[serviceSubdomain]`: Optional. The service subdomain (e.g., `pds`). If empty/null, uses only the hostname
+
+**Examples:**
+```bash
+# Deploy to IC with a new DID and subdomain
+./scripts/deploy_ic.sh new example.com auto pds
+# Results in: pds.example.com
+
+# Deploy to IC without subdomain
+./scripts/deploy_ic.sh new example.com
+# Results in: example.com
+
+# Deploy with an existing DID
+./scripts/deploy_ic.sh did:plc:abcd1234 example.com auto myservice
+
+# Reinstall with upgrade mode
+./scripts/deploy_ic.sh new example.com reinstall pds
 ```
 
 ### `post_to_feed.sh`
