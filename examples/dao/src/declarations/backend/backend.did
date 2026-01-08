@@ -225,7 +225,7 @@ type Dao =
    addWasmChunk: (request: AddWasmChunkRequest) -> (Result);
    createProposal: (proposal: ProposalKind) -> (Result_1);
    finalizeWasmChunks: (wasmHash: blob) -> (Result);
-   getDelegates: () -> (vec Delegate) composite_query;
+   getDelegates: () -> (vec Delegate);
    getMember: (id: principal) -> (opt Member) query;
    getMembers: () -> (vec Member) query;
    getPdsCanisterId: () -> (opt principal) query;

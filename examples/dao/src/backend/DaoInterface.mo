@@ -26,7 +26,7 @@ module {
     getProposal : query (proposalId : Nat) -> async ?ProposalDetail;
     getProposals : query (count : Nat, offset : Nat) -> async GetProposalsResponse;
     getVote : query (proposalId : Nat, voterId : Principal) -> async ?Vote;
-    getDelegates : composite query () -> async [Delegate];
+    getDelegates :  () -> async [Delegate];
   };
 
   public type ICRC120GetEventsFilter = { 

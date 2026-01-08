@@ -309,7 +309,7 @@ shared ({ caller = deployer }) persistent actor class Dao() : async DaoInterface
     proposalEngine.getVote(proposalId, voterId);
   };
 
-  public composite query func getDelegates() : async [DaoInterface.Delegate] {
+  public func getDelegates() : async [DaoInterface.Delegate] {
     let ?canisterId = pdsCanisterIdOrNull else return Runtime.trap("PDS canister ID is not set.");
     let pdsActor = actor (Principal.toText(canisterId)) : PdsInterface.Actor;
     await pdsActor.getDelegates();

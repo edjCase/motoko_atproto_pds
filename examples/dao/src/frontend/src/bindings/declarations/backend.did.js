@@ -201,7 +201,7 @@ export const idlFactory = ({ IDL }) => {
     'addWasmChunk' : IDL.Func([AddWasmChunkRequest], [Result], []),
     'createProposal' : IDL.Func([ProposalKind], [Result_1], []),
     'finalizeWasmChunks' : IDL.Func([IDL.Vec(IDL.Nat8)], [Result], []),
-    'getDelegates' : IDL.Func([], [IDL.Vec(Delegate)], ['composite_query']),
+    'getDelegates' : IDL.Func([], [IDL.Vec(Delegate)], []),
     'getMember' : IDL.Func([IDL.Principal], [IDL.Opt(Member)], ['query']),
     'getMembers' : IDL.Func([], [IDL.Vec(Member)], ['query']),
     'getPdsCanisterId' : IDL.Func([], [IDL.Opt(IDL.Principal)], ['query']),

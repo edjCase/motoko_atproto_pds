@@ -10,12 +10,14 @@ dotenv.config({ path: '../../.env' });
 export default defineConfig({
   build: {
     emptyOutDir: true,
+    target: 'esnext',
   },
   optimizeDeps: {
     esbuildOptions: {
       define: {
         global: "globalThis",
       },
+      target: 'esnext',
     },
   },
   server: {
