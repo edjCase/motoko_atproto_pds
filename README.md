@@ -155,8 +155,6 @@ See the [DAO README](examples/dao/README.md) for detailed setup instructions.
 - [Mops](https://mops.one/) (Motoko package manager)
 - Node.js (for the WebSocket proxy server)
 
-### Installation
-
 1. Clone the repository:
 ```bash
 git clone https://github.com/edjCase/motoko_atproto_pds.git
@@ -168,27 +166,21 @@ cd motoko_atproto_pds
 mops install
 ```
 
-3. Start the local replica:
+### Deploying to Local
+
+
+1. Start the local replica:
 ```bash
 dfx start --background
 ```
 
-4. Deploy the PDS:
+2. Deploy the PDS:
 ```bash
 # For local deployment with a new DID
 ./scripts/deploy_local.sh new
 
 # For local deployment with an existing PLC DID
 ./scripts/deploy_local.sh did:plc:your_existing_did
-
-# For IC deployment with a new DID
-./scripts/deploy_ic.sh new your-domain.com
-
-# For IC deployment with custom subdomain
-./scripts/deploy_ic.sh new your-domain.com auto pds
-
-# For IC deployment with an existing PLC DID
-./scripts/deploy_ic.sh did:plc:your_existing_did your-domain.com
 ```
 
 The deployment scripts automatically:
@@ -210,9 +202,242 @@ The PDS initialization requires the following parameters (handled automatically 
 }
 ```
 
-### Setting up the WebSocket Proxy
 
-For your PDS to be crawled by AT Protocol relays, see the [WebSocket Requirement](#websocket-requirement) section above for detailed setup instructions.
+## Deploying to Mainnet
+
+This section provides a comprehensive, step-by-step guide for deploying your PDS to the Internet Computer mainnet and making it accessible via a custom domain.
+
+### Step 1: Deploy the PDS Canister
+
+Choose one of the following deployment methods:
+
+#### Option 1: Via CLI (Direct Deployment)
+
+> ✅ **Easiest method** - Quick deployment with minimal setup
+> 
+> ⚠️ **Note**: If deploying for a DAO, you'll need to manually transfer ownership to the DAO canister after deployment using `setOwner()`.
+
+Deploy the PDS canister directly using the deployment script:
+
+```bash
+./scripts/deploy_ic.sh new {domain}
+
+# For IC deployment with a new DID
+./scripts/deploy_ic.sh new {domain}
+
+# For IC deployment with custom subdomain
+./scripts/deploy_ic.sh new {domain} auto {subdomain}
+
+# For IC deployment with an existing PLC DID
+./scripts/deploy_ic.sh {your_existing_plc_did} {domain}
+```
+
+Replace the placeholders:
+- `{domain}`: Your desired domain (e.g., `example.com`)
+- `{subdomain}`: Your desired subdomain (e.g., `pds`)
+- `{your_existing_plc_did}`: Your existing PLC DID (e.g., `did:plc:abcd1234`)
+
+#### Option 2: Via DAO (Governed Deployment)
+
+> ✅ **Best for trustless DAO governance** - The PDS is owned by the DAO from deployment, eliminating the need for manual ownership transfer
+> 
+> ⚠️ **More complex** - Requires ICRC-120 orchestrator setup and proposal-based deployment
+
+To deploy via a DAO governance system, the DAO must make the following inter-canister calls upon proposal adoption:
+
+1. **Deploy the canister using ICRC-120 orchestrator**:
+   For more information on ICRC-120 deployment, see: **[icrc120.mo](https://github.com/icdevsorg/icrc120.mo/)**
+   ```motoko
+   // Call the ICRC-120 orchestrator
+   let results = await orchestrator.icrc120_upgrade_to(
+     daoPrincipal,
+     [{
+       canister_id = pdsCanisterId;  // Or create new via management canister
+       hash = wasmHash;               // SHA256 of PDS WASM module
+       args = initArgs;               // Encoded: { plcKind; hostname; serviceSubdomain; owner }
+       stop = true;
+       restart = true;
+       snapshot = false;
+       timeout = 600_000_000_000;    // 10 minutes
+       mode = #install;               // Or #reinstall, #upgrade
+       parameters = null;
+     }]
+   );
+   ```
+   
+   ⚠️ **Note**: ICRC-120 must be used for PDS deployment because the PDS WASM module exceeds 2MB, which is larger than the Internet Computer's management canister message size limit. ICRC-120 handles chunked WASM deployment automatically.
+   
+   **WASM Storage**: The [DAO example](examples/dao/src/backend/WasmStore.mo) uses local WASM storage where chunks are uploaded to the DAO canister. Alternatively, WASM modules can be retrieved from an ICRC-118 registry (not implemented in this example).
+   
+
+2. **Initialization arguments** must be encoded as Candid:
+   ```motoko
+   {
+     plcKind : { #new } or { #existing : Text };  // DID configuration
+     hostname : Text;                              // e.g., "example.com"
+     serviceSubdomain : ?Text;                     // e.g., ?"pds" for pds.example.com
+     owner : ?Principal;                           // Optional owner, defaults to deployer
+   }
+   ```
+
+3. **After deployment**, the DAO can interact with the PDS via its public API:
+   - `createRecord()` - Create posts/records
+   - `setDelegatePermissions()` - Grant permissions to other entities
+   - `setOwner()` - Transfer ownership
+   - Other [PDS API methods](#api-reference)
+
+**Reference Implementation**: See [examples/dao](examples/dao) for a complete DAO with PDS deployment proposals.
+
+### Step 2: Access Your PDS and Retrieve DID
+
+1. **Wait for initialization**
+   
+   After deployment, wait approximately 30 seconds for the canister to fully initialize.
+
+2. **Visit the PDS interface**
+   
+   Navigate to `https://{canister_id}.raw.icp0.io/` in your browser.
+   
+   You should see your PDS's interface.
+
+3. **Copy the PLC DID**
+   
+   From the UI, copy your PLC DID (it will look like `did:plc:...`). You'll need this for DNS configuration.
+
+### Step 3: Configure Custom Domain
+
+Configure your DNS records to point your custom domain to the PDS. All settings below assume no subdomain; if using a subdomain (e.g., `pds.example.com`), modify each record accordingly.
+
+#### DNS Records
+
+Add the following DNS records to your domain:
+
+1. **TXT Record for AT Protocol** (Optional)
+   ```
+   Record Type: TXT
+   Name: _atproto
+   Value: did={plc_did}
+   ```
+   Replace `{plc_did}` with the DID you copied from the UI.
+   
+   ⚠️ **Note**: This TXT record is optional. Your PDS will function without it, but adding it helps with identity verification in the AT Protocol network.
+   
+
+### Step 4: Set Up WebSocket Server
+
+The AT Protocol requires WebSocket support for repository subscriptions. Deploy a WebSocket server to handle these connections.
+
+For detailed information on why this is necessary, see the [WebSocket Requirement](#websocket-requirement) section.
+
+1. **Deploy the WebSocket server**
+   
+   Use the reference implementation: **[atproto_pds_ws_server](https://github.com/edjCase/atproto_pds_ws_server/)**
+
+2. **Configure environment variables**
+   ```
+   DOMAIN={PDS_DOMAIN}
+   ```
+   Replace `{PDS_DOMAIN}` with your PDS domain (e.g., `pds.example.com`).
+
+### Step 5: Set Up Reverse Proxy
+
+Configure a reverse proxy to route traffic between your custom domain, the PDS canister, and the WebSocket server.
+
+#### Option A: Cloudflare
+
+1. **Add DNS Record**
+   ```
+   Record Type: CNAME
+   Name: @
+   Value: {domain}.icp1.io
+   Proxy Status: Proxied (orange cloud enabled)
+   ```
+   Replace `{domain}` with your domain name.
+
+2. **Create a Cloudflare Worker**
+   
+   - Navigate to Workers & Pages in your Cloudflare dashboard
+   - Click "Create Application" → "Create Worker"
+   - Replace the default code with the following:
+
+   ```javascript
+   export default {
+     async fetch(request, env) {
+       const url = new URL(request.url);
+       
+       // Special WebSocket path
+       if (url.pathname === '/xrpc/com.atproto.sync.subscribeRepos') {
+         const targetUrl = 'https://{websocketServerUrl}' + url.pathname + url.search;
+         return fetch(targetUrl, {
+           method: request.method,
+           headers: request.headers,
+           body: request.body,
+         });
+       }
+       
+       // All other paths -> IC gateway
+       const icUrl = 'https://{pdsCanisterId}.raw.icp0.io' + url.pathname + url.search;
+       
+       return fetch(icUrl, {
+         method: request.method,
+         headers: request.headers,
+         body: request.body,
+         redirect: 'follow'
+       });
+     }
+   }
+   ```
+
+3. **Replace placeholders**
+   - `{websocketServerUrl}`: Your deployed WebSocket server URL (e.g., `ws.example.com`)
+   - `{pdsCanisterId}`: Your PDS canister ID from the deployment step
+
+4. **Add Worker Route**
+   
+   - Go to your website's Workers Routes settings
+   - Add a route: `{domain}/*`
+   - Select the worker you just created
+   
+   Replace `{domain}` with your domain name (e.g., `example.com`).
+
+#### Option B: Other Reverse Proxies
+
+If using another reverse proxy solution (Nginx, Apache, etc.), configure it to:
+- Route all requests to `https://{pdsCanisterId}.raw.icp0.io`
+- **Except** requests to `/xrpc/com.atproto.sync.subscribeRepos`, which should route to your WebSocket server
+
+Replace `{pdsCanisterId}` with your PDS canister ID from the deployment step.
+
+### Step 6: Create Your First Post
+
+Once everything is configured, test your PDS by creating a post:
+
+#### Option A: Via CLI (Direct)
+
+```bash
+./scripts/post_to_feed.sh ic "Hello from my Internet Computer PDS!"
+```
+
+#### Option B: Via DAO (Proposal)
+
+Create a proposal to post to the feed through your DAO's governance system. See the [DAO example documentation](examples/dao/README.md) for details on creating and executing post proposals.
+
+### Step 7: Request Relay Crawling
+
+To have your PDS indexed by the Bluesky network, you have two options:
+
+#### Option A: Via PDS Landing Page
+
+Navigate to your PDS landing page at `https://{your-domain.com}/` and use the built-in UI to request a crawl from the Bluesky relay.
+
+#### Option B: Via Script
+
+```bash
+./scripts/request_crawl.sh
+```
+
+
+⚠️ **Important**: Ensure your WebSocket server and reverse proxy are properly configured before requesting a crawl, or the relay will fail to index your PDS.
 
 ## Utility Scripts
 
